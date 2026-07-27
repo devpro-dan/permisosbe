@@ -2,13 +2,30 @@ import bcrypt from 'bcryptjs';
 import pool from '../config/database';
 
 const sections = [
-  'usuarios',
-  'roles',
-  'permisos_administrativos',
-  'reportes',
-  'configuracion',
-  'sesiones',
+  'usuarios', 'roles', 'permisos_administrativos',
+  'reportes', 'configuracion', 'sesiones',
 ];
+
+const defaultConfigs = [
+  { clave: 'permisos_por_anio', valor: '6', descripcion: 'Cantidad máxima de permisos administrativos por año laboral' },
+  { clave: 'duracion_sesion_minutos', valor: '120', descripcion: 'Duración máxima de la sesión de usuario en minutos' },
+  { clave: 'dias_acceso', valor: '1,2,3,4,5', descripcion: 'Días de la semana permitidos para acceder al sistema (1=Lunes, 7=Domingo)' },
+  { clave: 'smtp_host', valor: '', descripcion: 'Host del servidor SMTP para envío de correos' },
+  { clave: 'smtp_port', valor: '587', descripcion: 'Puerto del servidor SMTP' },
+  { clave: 'smtp_user', valor: '', descripcion: 'Usuario de autenticación SMTP' },
+  { clave: 'smtp_pass', valor: '', descripcion: 'Contraseña de aplicación SMTP' },
+  { clave: 'smtp_from', valor: '', descripcion: 'Dirección de correo desde la que se enviarán los emails' },
+];
+
+async function insertConfigs(client: any) {
+  for (const config of defaultConfigs) {
+    await client.query(
+      `INSERT INTO system_config (clave, valor, descripcion) VALUES ($1, $2, $3)
+       ON CONFLICT (clave) DO NOTHING`,
+      [config.clave, config.valor, config.descripcion]
+    );
+  }
+}
 
 async function seed() {
   const client = await pool.connect();
@@ -18,8 +35,10 @@ async function seed() {
 
     const existingAdmin = await client.query('SELECT id FROM roles WHERE nombre = $1', ['admin']);
     if (existingAdmin.rows.length > 0) {
-      console.log('Seed ya ejecutado anteriormente. Saliendo...');
-      await client.query('ROLLBACK');
+      console.log('Roles ya existen. Insertando configuraciones faltantes...');
+      await insertConfigs(client);
+      await client.query('COMMIT');
+      console.log('Configuraciones faltantes agregadas.');
       return;
     }
 
@@ -82,32 +101,13 @@ async function seed() {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (username) DO NOTHING`,
       [
-        'Administrador',
-        '11111111',
-        '1',
-        'Sistema',
-        '',
-        'Administrador del Sistema',
-        'admin@permisosbe.com',
-        'admin',
-        passwordHash,
-        adminRoleId,
+        'Administrador', '11111111', '1', 'Sistema', '',
+        'Administrador del Sistema', 'admin@permisosbe.com',
+        'admin', passwordHash, adminRoleId,
       ]
     );
 
-    const configs = [
-      { clave: 'permisos_por_anio', valor: '6', descripcion: 'Cantidad máxima de permisos administrativos por año laboral' },
-      { clave: 'duracion_sesion_minutos', valor: '120', descripcion: 'Duración máxima de la sesión de usuario en minutos' },
-      { clave: 'dias_acceso', valor: '1,2,3,4,5', descripcion: 'Días de la semana permitidos para acceder al sistema (1=Lunes, 7=Domingo)' },
-    ];
-
-    for (const config of configs) {
-      await client.query(
-        `INSERT INTO system_config (clave, valor, descripcion) VALUES ($1, $2, $3)
-         ON CONFLICT (clave) DO NOTHING`,
-        [config.clave, config.valor, config.descripcion]
-      );
-    }
+    await insertConfigs(client);
 
     await client.query('COMMIT');
     console.log('Seed ejecutado exitosamente');

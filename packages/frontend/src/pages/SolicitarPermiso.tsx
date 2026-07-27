@@ -1,17 +1,25 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { permisoApi } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
+function addDays(date: string, days: number): string {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
 export default function SolicitarPermiso() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    fecha_inicio: '',
-    fecha_fin: '',
-    tipo_jornada: 'completa' as 'completa' | 'media',
-    motivo: '',
-  });
+  const today = new Date().toISOString().split('T')[0];
+
+  const [fechaInicio, setFechaInicio] = useState(today);
+  const [cantidadDias, setCantidadDias] = useState(1);
+  const [tipoJornada, setTipoJornada] = useState<'completa' | 'media'>('completa');
+  const [motivo, setMotivo] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const fechaFin = useMemo(() => addDays(fechaInicio, cantidadDias - 1), [fechaInicio, cantidadDias]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +27,12 @@ export default function SolicitarPermiso() {
     setLoading(true);
 
     try {
-      await permisoApi.solicitar(form);
+      await permisoApi.solicitar({
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        tipo_jornada: cantidadDias > 1 ? 'completa' : tipoJornada,
+        motivo,
+      });
       navigate('/mis-permisos');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error al solicitar permiso');
@@ -37,40 +50,60 @@ export default function SolicitarPermiso() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
           <input
             type="date"
-            value={form.fecha_inicio}
-            onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })}
+            value={fechaInicio}
+            onChange={(e) => setFechaInicio(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Fin (opcional)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad de Días</label>
           <input
-            type="date"
-            value={form.fecha_fin}
-            onChange={(e) => setForm({ ...form, fecha_fin: e.target.value })}
+            type="number"
+            min={1}
+            value={cantidadDias}
+            onChange={(e) => setCantidadDias(Math.max(1, parseInt(e.target.value) || 1))}
             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Jornada</label>
-          <select
-            value={form.tipo_jornada}
-            onChange={(e) => setForm({ ...form, tipo_jornada: e.target.value as 'completa' | 'media' })}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            <option value="completa">Jornada Completa</option>
-            <option value="media">Media Jornada</option>
-          </select>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+          <input
+            type="date"
+            value={fechaFin}
+            readOnly
+            className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+          />
         </div>
+
+        {cantidadDias === 1 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Jornada</label>
+            <select
+              value={tipoJornada}
+              onChange={(e) => setTipoJornada(e.target.value as 'completa' | 'media')}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              <option value="completa">Jornada Completa</option>
+              <option value="media">Media Jornada</option>
+            </select>
+          </div>
+        )}
+
+        {cantidadDias > 1 && (
+          <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm">
+            Para permisos de múltiples días, la jornada será completa.
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
           <textarea
-            value={form.motivo}
-            onChange={(e) => setForm({ ...form, motivo: e.target.value })}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
             rows={4}
             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             required
