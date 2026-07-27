@@ -5,6 +5,7 @@ import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { FileText, FileSpreadsheet } from 'lucide-react';
+import { formatDate } from '../utils/format';
 
 export default function MisPermisos() {
   const [permisos, setPermisos] = useState<Permiso[]>([]);
@@ -60,9 +61,9 @@ export default function MisPermisos() {
   if (loading) return <LoadingSpinner message="Cargando permisos..." />;
 
   const columns = [
-    { key: 'fecha_solicitud', label: 'Fecha Solicitud', render: (v: string) => new Date(v).toLocaleDateString() },
-    { key: 'fecha_inicio', label: 'Fecha Inicio' },
-    { key: 'fecha_fin', label: 'Fecha Fin', render: (v: string) => v || '-' },
+    { key: 'fecha_solicitud', label: 'Fecha Solicitud', render: (v: string) => formatDate(v) },
+    { key: 'fecha_inicio', label: 'Fecha Inicio', render: (v: string) => formatDate(v) },
+    { key: 'fecha_fin', label: 'Fecha Fin', render: (v: string) => formatDate(v) },
     { key: 'tipo_jornada', label: 'Jornada', render: (v: string) => v === 'completa' ? 'Completa' : 'Media' },
     { key: 'estado', label: 'Estado', render: (_: any, row: Permiso) => estadoBadge(row.estado) },
     { key: 'motivo', label: 'Motivo' },
@@ -106,8 +107,8 @@ export default function MisPermisos() {
         <MobileCard key={p.id}>
           <div className="flex justify-between items-start">
             <div>
-              <p className="font-medium">{new Date(p.fecha_solicitud).toLocaleDateString()}</p>
-              <p className="text-sm text-gray-500">{p.fecha_inicio}{p.fecha_fin ? ` - ${p.fecha_fin}` : ''}</p>
+              <p className="font-medium">{formatDate(p.fecha_solicitud)}</p>
+              <p className="text-sm text-gray-500">{formatDate(p.fecha_inicio)}{p.fecha_fin ? ` - ${formatDate(p.fecha_fin)}` : ''}</p>
             </div>
             {estadoBadge(p.estado)}
           </div>

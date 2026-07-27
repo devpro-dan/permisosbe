@@ -1,6 +1,13 @@
 import nodemailer from 'nodemailer';
 import { systemConfigRepository } from '../repositories/systemConfig.repository';
 
+function fmtDate(v: string | undefined | null): string {
+  if (!v) return '-';
+  const [y, m, d] = v.split('T')[0].split('-');
+  if (!y || !m || !d) return v;
+  return `${d}/${m}/${y}`;
+}
+
 let transporter: nodemailer.Transporter | null = null;
 
 async function getTransporter() {
@@ -74,7 +81,7 @@ export const emailService = {
         content = `
           <p>Se ha solicitado un nuevo permiso administrativo.</p>
           <p><strong>Motivo:</strong> ${data.motivo}</p>
-          <p><strong>Fecha Inicio:</strong> ${data.fecha_inicio}</p>
+          <p><strong>Fecha Inicio:</strong> ${fmtDate(data.fecha_inicio)}</p>
           <p><strong>Estado:</strong> En Revisión</p>
         `;
         break;
@@ -84,7 +91,7 @@ export const emailService = {
         content = `
           <p>Su permiso administrativo ha sido <strong style="color: #16a34a;">aprobado</strong>.</p>
           <p><strong>Motivo:</strong> ${data.motivo}</p>
-          <p><strong>Fecha Inicio:</strong> ${data.fecha_inicio}</p>
+          <p><strong>Fecha Inicio:</strong> ${fmtDate(data.fecha_inicio)}</p>
         `;
         break;
       case 'rechazado':

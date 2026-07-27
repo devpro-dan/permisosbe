@@ -35,6 +35,12 @@ export const permisoController = {
         return;
       }
 
+      const overlap = await permisoService.checkOverlap(userId, fecha_inicio, fecha_fin);
+      if (overlap) {
+        res.status(400).json({ message: 'Ya tienes un permiso registrado para esa fecha' });
+        return;
+      }
+
       const permiso = await permisoService.create({
         user_id: userId, fecha_inicio, fecha_fin, tipo_jornada, motivo,
       });

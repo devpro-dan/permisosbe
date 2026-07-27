@@ -1,5 +1,8 @@
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import { env } from './env';
+
+types.setTypeParser(1082, (val: string) => val);
+types.setTypeParser(1114, (val: string) => val);
 
 const pool = new Pool(
   process.env.DATABASE_URL

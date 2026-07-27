@@ -6,6 +6,7 @@ import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Modal } from '../components/Modal';
 import { CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { formatDate } from '../utils/format';
 
 export default function GestionPermisos() {
   const [permisos, setPermisos] = useState<Permiso[]>([]);
@@ -71,8 +72,8 @@ export default function GestionPermisos() {
   const columns = [
     { key: 'nombres', label: 'Trabajador', render: (_: any, row: Permiso) => `${row.nombres} ${row.apellido_paterno}` },
     { key: 'rut', label: 'RUT', render: (_: any, row: Permiso) => `${row.rut}-${row.dv}` },
-    { key: 'fecha_inicio', label: 'Inicio' },
-    { key: 'fecha_fin', label: 'Fin', render: (v: string) => v || '-' },
+    { key: 'fecha_inicio', label: 'Inicio', render: (v: string) => formatDate(v) },
+    { key: 'fecha_fin', label: 'Fin', render: (v: string) => formatDate(v) },
     { key: 'tipo_jornada', label: 'Jornada', render: (v: string) => v === 'completa' ? 'Completa' : 'Media' },
     { key: 'estado', label: 'Estado', render: (_: any, row: Permiso) => estadoBadge(row.estado) },
     { key: 'motivo', label: 'Motivo' },
@@ -92,7 +93,7 @@ export default function GestionPermisos() {
         <MobileCard key={p.id} onDelete={() => handleDelete(p.id)}>
           <p className="font-medium">{p.nombres} {p.apellido_paterno}</p>
           <p className="text-sm text-gray-500">{p.rut}-{p.dv}</p>
-          <p className="text-sm">{p.fecha_inicio}{p.fecha_fin ? ` - ${p.fecha_fin}` : ''}</p>
+          <p className="text-sm">{formatDate(p.fecha_inicio)}{p.fecha_fin ? ` - ${formatDate(p.fecha_fin)}` : ''}</p>
           <div className="flex items-center gap-2">
             {estadoBadge(p.estado)}
             <span className="text-xs text-gray-500">{p.tipo_jornada === 'completa' ? 'Completa' : 'Media'}</span>
@@ -121,7 +122,7 @@ export default function GestionPermisos() {
                   <div key={p.id} className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
                     <div>
                       <p className="font-medium">{p.nombres} {p.apellido_paterno}</p>
-                      <p className="text-sm text-gray-500">{p.fecha_inicio} - {p.motivo}</p>
+                      <p className="text-sm text-gray-500">{formatDate(p.fecha_inicio)} - {p.motivo}</p>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleAprobar(p.id)} className="inline-flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"><CheckCircle className="w-3.5 h-3.5" /> Aprobar</button>
