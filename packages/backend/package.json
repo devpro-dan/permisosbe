@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "migrate:up": "pg-migrate up",
     "migrate:down": "pg-migrate down",
     "migrate:create": "pg-migrate create",
     "seed": "ts-node src/seeds/seed.ts",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests --forceExit"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

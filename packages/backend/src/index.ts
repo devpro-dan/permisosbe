@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { env } from './config/env';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import roleRoutes from './routes/role.routes';
@@ -35,10 +34,6 @@ app.use((_req, res) => {
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Error:', err);
   res.status(500).json({ message: 'Error interno del servidor' });
-});
-
-app.listen(env.PORT, () => {
-  console.log(`Servidor corriendo en puerto ${env.PORT}`);
 });
 
 export default app;
