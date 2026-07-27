@@ -12,6 +12,7 @@ export interface User {
   password_hash: string;
   rol_id: number;
   is_suspended: boolean;
+  can_change_password: boolean;
   created_at: Date;
   updated_at: Date;
 }

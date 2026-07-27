@@ -10,6 +10,14 @@ export const userRepository = {
     return result.rows[0] || null;
   },
 
+  async findByEmail(email: string): Promise<User | null> {
+    const result = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+    return result.rows[0] || null;
+  },
+
   async findById(id: number): Promise<User | null> {
     const result = await pool.query(
       'SELECT * FROM users WHERE id = $1',
@@ -30,13 +38,14 @@ export const userRepository = {
 
   async create(data: Partial<User>): Promise<User> {
     const result = await pool.query(
-      `INSERT INTO users (nombres, rut, dv, apellido_paterno, apellido_materno, titulo, cargo, email, username, password_hash, rol_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO users (nombres, rut, dv, apellido_paterno, apellido_materno, titulo, cargo, email, username, password_hash, rol_id, can_change_password)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         data.nombres, data.rut, data.dv, data.apellido_paterno,
         data.apellido_materno, data.titulo, data.cargo, data.email,
         data.username, data.password_hash, data.rol_id,
+        data.can_change_password ?? true,
       ]
     );
     return result.rows[0];

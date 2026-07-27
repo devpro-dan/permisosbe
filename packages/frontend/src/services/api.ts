@@ -34,6 +34,12 @@ export const authApi = {
   getProfile: () => api.get('/auth/profile'),
   setup2FA: () => api.post('/auth/2fa/setup'),
   verify2FA: (token: string) => api.post('/auth/2fa/verify', { token }),
+  changeMyPassword: (currentPassword: string, newPassword: string) =>
+    api.post('/auth/change-password', { currentPassword, newPassword }),
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
+  resetPassword: (token: string, newPassword: string) =>
+    api.post('/auth/reset-password', { token, newPassword }),
 };
 
 export const userApi = {
@@ -42,6 +48,10 @@ export const userApi = {
   create: (data: any) => api.post('/usuarios', data),
   update: (id: number, data: any) => api.put(`/usuarios/${id}`, data),
   suspend: (id: number, suspended: boolean) => api.patch(`/usuarios/${id}/suspend`, { suspended }),
+  changePassword: (id: number, password: string) => api.post(`/usuarios/${id}/change-password`, { password }),
+  get2FAStatus: (id: number) => api.get(`/usuarios/${id}/2fa`),
+  setup2FA: (id: number) => api.post(`/usuarios/${id}/2fa/setup`),
+  disable2FA: (id: number) => api.delete(`/usuarios/${id}/2fa`),
   delete: (id: number) => api.delete(`/usuarios/${id}`),
 };
 

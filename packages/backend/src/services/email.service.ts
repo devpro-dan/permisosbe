@@ -192,4 +192,28 @@ export const emailService = {
       console.error('Error enviando correo:', err);
     }
   },
+
+  async sendResetPasswordEmail(email: string, userName: string, resetLink: string) {
+    const transport = await getTransporter();
+    if (!transport) {
+      throw new Error('SMTP no configurado');
+    }
+
+    const smtpFrom = await systemConfigRepository.findByClave('smtp_from');
+    const from = smtpFrom?.valor || 'noreply@permisosbe.com';
+
+    await transport.sendMail({
+      from: `"PermisosBE" <${from}>`,
+      to: email,
+      subject: 'Restablecimiento de Contraseña',
+      html: getEmailTemplate('Restablecer Contraseña', `
+        <p style="color:#374151;font-size:15px;line-height:1.6;">Hola <strong>${userName}</strong>,</p>
+        <p style="color:#374151;font-size:15px;line-height:1.6;">Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente botón para crear una nueva contraseña:</p>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:600;">Restablecer Contraseña</a>
+        </div>
+        <p style="color:#6b7280;font-size:13px;line-height:1.5;">Este enlace expirará en 1 hora. Si no solicitaste este cambio, ignora este mensaje.</p>
+      `),
+    });
+  },
 };

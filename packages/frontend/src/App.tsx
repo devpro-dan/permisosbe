@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import MisPermisos from './pages/MisPermisos';
 import SolicitarPermiso from './pages/SolicitarPermiso';
@@ -18,6 +19,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/mis-permisos" element={<ProtectedRoute allowedRoles={[3]}><MisPermisos /></ProtectedRoute>} />

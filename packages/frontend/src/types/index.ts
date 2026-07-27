@@ -12,6 +12,7 @@ export interface User {
   rol_id: number;
   rol_nombre?: string;
   is_suspended: boolean;
+  can_change_password: boolean;
   created_at: string;
 }
 
@@ -82,4 +83,5 @@ export interface AuthUser {
   email: string;
   username: string;
   rolId: number;
+  can_change_password: boolean;
 }

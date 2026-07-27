@@ -29,4 +29,5 @@ export const env = {
   DB_PASSWORD: dbUrlParsed?.DB_PASSWORD || process.env.DB_PASSWORD || 'postgres',
   JWT_SECRET: process.env.JWT_SECRET || 'default-secret',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '2h',
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
 };
