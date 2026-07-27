@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { permisoApi } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { Send } from 'lucide-react';
 
 function addDays(date: string, days: number): string {
   const d = new Date(date);
@@ -115,9 +116,9 @@ export default function SolicitarPermiso() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+          className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
         >
-          {loading ? 'Solicitando...' : 'Solicitar Permiso'}
+          {loading ? 'Solicitando...' : <><Send className="w-4 h-4" /> Solicitar Permiso</>}
         </button>
       </form>
     </div>

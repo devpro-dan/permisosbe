@@ -4,6 +4,7 @@ import { Permiso, Disponibilidad } from '../types';
 import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { FileText, FileSpreadsheet } from 'lucide-react';
 
 export default function MisPermisos() {
   const [permisos, setPermisos] = useState<Permiso[]>([]);
@@ -73,11 +74,11 @@ export default function MisPermisos() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Mis Permisos</h1>
         <div className="flex gap-2">
-          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-            PDF
+          <button onClick={handleDownloadPDF} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+            <FileText className="w-4 h-4" /> PDF
           </button>
-          <button onClick={handleDownloadExcel} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
-            Excel
+          <button onClick={handleDownloadExcel} className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
+            <FileSpreadsheet className="w-4 h-4" /> Excel
           </button>
         </div>
       </div>

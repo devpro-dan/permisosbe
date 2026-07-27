@@ -36,6 +36,10 @@ export const sessionRepository = {
     return result.rows;
   },
 
+  async deleteAll(): Promise<void> {
+    await pool.query('DELETE FROM sessions');
+  },
+
   async deleteById(id: number): Promise<boolean> {
     const result = await pool.query('DELETE FROM sessions WHERE id = $1', [id]);
     return result.rowCount !== null && result.rowCount > 0;

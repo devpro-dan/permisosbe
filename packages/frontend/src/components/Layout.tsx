@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { Toast } from './Toast';
 
 export function Layout() {
   return (
@@ -8,6 +9,7 @@ export function Layout() {
       <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8">
         <Outlet />
       </main>
+      <Toast />
     </div>
   );
 }

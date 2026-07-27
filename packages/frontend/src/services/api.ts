@@ -76,5 +76,6 @@ export const configApi = {
 
 export const sessionApi = {
   list: () => api.get('/sesiones'),
+  deleteAll: () => api.delete('/sesiones'),
   delete: (id: number) => api.delete(`/sesiones/${id}`),
 };

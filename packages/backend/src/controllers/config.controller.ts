@@ -1,11 +1,20 @@
 import { Request, Response } from 'express';
 import { systemConfigRepository } from '../repositories/systemConfig.repository';
 
+const SENSITIVE_KEYS = ['smtp_pass'];
+
+function maskSensitive(config: any) {
+  if (SENSITIVE_KEYS.includes(config.clave)) {
+    config.valor = '';
+  }
+  return config;
+}
+
 export const configController = {
   async list(_req: Request, res: Response) {
     try {
       const configs = await systemConfigRepository.findAll();
-      res.json(configs);
+      res.json(configs.map(maskSensitive));
     } catch (error) {
       res.status(500).json({ message: 'Error al obtener configuraciones' });
     }
@@ -18,7 +27,7 @@ export const configController = {
         res.status(404).json({ message: 'Configuración no encontrada' });
         return;
       }
-      res.json(config);
+      res.json(maskSensitive(config));
     } catch (error) {
       res.status(500).json({ message: 'Error al obtener configuración' });
     }
@@ -31,8 +40,16 @@ export const configController = {
         res.status(400).json({ message: 'Clave y valor requeridos' });
         return;
       }
+
+      if (SENSITIVE_KEYS.includes(clave) && !valor) {
+        const existing = await systemConfigRepository.findByClave(clave);
+        if (existing) {
+          return res.json(maskSensitive(existing));
+        }
+      }
+
       const config = await systemConfigRepository.set(clave, valor, descripcion);
-      res.json(config);
+      res.json(maskSensitive(config));
     } catch (error) {
       res.status(500).json({ message: 'Error al guardar configuración' });
     }

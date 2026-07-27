@@ -1,6 +1,18 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useState } from 'react';
+import { LayoutDashboard, ClipboardList, FilePlus, ClipboardCheck, Users, Shield, Settings, History, Menu, X, LogOut } from 'lucide-react';
+
+const iconMap: Record<string, React.ReactNode> = {
+  Dashboard: <LayoutDashboard className="w-4 h-4" />,
+  'Mis Permisos': <ClipboardList className="w-4 h-4" />,
+  'Solicitar Permiso': <FilePlus className="w-4 h-4" />,
+  'Gestionar Permisos': <ClipboardCheck className="w-4 h-4" />,
+  Usuarios: <Users className="w-4 h-4" />,
+  Roles: <Shield className="w-4 h-4" />,
+  Configuración: <Settings className="w-4 h-4" />,
+  Sesiones: <History className="w-4 h-4" />,
+};
 
 const navItems = [
   { label: 'Dashboard', path: '/dashboard', roles: [1, 2, 3] },
@@ -25,9 +37,7 @@ export function Sidebar() {
         className="md:hidden fixed top-4 left-4 z-50 p-2 bg-blue-600 text-white rounded-lg"
         onClick={() => setMobileOpen(!mobileOpen)}
       >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={mobileOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
-        </svg>
+        {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-blue-900 text-white transform transition-transform duration-200 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:inset-auto md:h-screen`}>
@@ -43,16 +53,18 @@ export function Sidebar() {
               to={item.path}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
-                `block px-4 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-blue-700 text-white' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`
+                `flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-blue-700 text-white' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`
               }
             >
+              {iconMap[item.label]}
               {item.label}
             </NavLink>
           ))}
         </nav>
 
         <div className="p-4 border-t border-blue-800">
-          <button onClick={logout} className="w-full px-4 py-2 text-sm text-blue-200 hover:text-white hover:bg-blue-800 rounded-lg transition-colors">
+          <button onClick={logout} className="flex items-center gap-3 w-full px-4 py-2 text-sm text-blue-200 hover:text-white hover:bg-blue-800 rounded-lg transition-colors">
+            <LogOut className="w-4 h-4" />
             Cerrar Sesión
           </button>
         </div>

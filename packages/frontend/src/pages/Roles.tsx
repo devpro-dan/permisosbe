@@ -5,6 +5,7 @@ import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { Modal } from '../components/Modal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { Plus, Shield, Save } from 'lucide-react';
 
 const SECCIONES = ['usuarios', 'roles', 'permisos_administrativos', 'reportes', 'configuracion', 'sesiones'];
 
@@ -114,8 +115,8 @@ export default function Roles() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Roles</h1>
-        <button onClick={openCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-          Nuevo Rol
+        <button onClick={openCreate} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+          <Plus className="w-4 h-4" /> Nuevo Rol
         </button>
       </div>
 
@@ -130,8 +131,8 @@ export default function Roles() {
         <MobileCard key={r.id} onEdit={() => openEdit(r)} onDelete={() => handleDelete(r.id)}>
           <p className="font-medium">{r.nombre}</p>
           <p className="text-sm text-gray-500">{r.descripcion || '-'}</p>
-          <button onClick={() => openPermModal(r)} className="text-sm text-blue-600 hover:text-blue-800 mt-2">
-            Gestionar Permisos
+          <button onClick={() => openPermModal(r)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2">
+            <Shield className="w-3.5 h-3.5" /> Gestionar Permisos
           </button>
         </MobileCard>
       ))}
@@ -143,8 +144,8 @@ export default function Roles() {
             {roles.map((r) => (
               <div key={r.id} className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
                 <span className="font-medium">{r.nombre}</span>
-                <button onClick={() => openPermModal(r)} className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
-                  Gestionar Permisos
+                <button onClick={() => openPermModal(r)} className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+                  <Shield className="w-3.5 h-3.5" /> Gestionar Permisos
                 </button>
               </div>
             ))}
@@ -162,8 +163,8 @@ export default function Roles() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
             <textarea value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} rows={3} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
-          <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-            {editRole ? 'Actualizar' : 'Crear'} Rol
+          <button type="submit" className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+            <Save className="w-4 h-4" /> {editRole ? 'Actualizar' : 'Crear'} Rol
           </button>
         </form>
       </Modal>
@@ -193,8 +194,8 @@ export default function Roles() {
               </div>
             );
           })}
-          <button onClick={savePermissions} className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
-            Guardar Permisos
+          <button onClick={savePermissions} className="flex items-center justify-center gap-2 w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
+            <Save className="w-4 h-4" /> Guardar Permisos
           </button>
         </div>
       </Modal>

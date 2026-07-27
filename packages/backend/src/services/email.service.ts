@@ -12,7 +12,7 @@ async function getTransporter() {
   const smtpPass = await systemConfigRepository.findByClave('smtp_pass');
   const smtpFrom = await systemConfigRepository.findByClave('smtp_from');
 
-  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !smtpHost.valor || !smtpPort.valor || !smtpUser.valor || !smtpPass.valor) {
     return null;
   }
 
@@ -98,11 +98,15 @@ export const emailService = {
         break;
     }
 
-    await transport.sendMail({
-      from: `"PermisosBE" <${from}>`,
-      to: email,
-      subject,
-      html: getEmailTemplate(title, content),
-    });
+    try {
+      await transport.sendMail({
+        from: `"PermisosBE" <${from}>`,
+        to: email,
+        subject,
+        html: getEmailTemplate(title, content),
+      });
+    } catch (err) {
+      console.error('Error enviando correo:', err);
+    }
   },
 };

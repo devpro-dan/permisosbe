@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 
 interface DataTableProps {
   columns: { key: string; label: string; render?: (value: any, row: any) => ReactNode }[];
@@ -42,15 +43,15 @@ export function DataTable({ columns, data, onEdit, onDelete }: DataTableProps) {
                 </td>
               ))}
               {(onEdit || onDelete) && (
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-3">
                   {onEdit && (
-                    <button onClick={() => onEdit(row)} className="text-blue-600 hover:text-blue-800">
-                      Editar
+                    <button onClick={() => onEdit(row)} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800">
+                      <Pencil className="w-3.5 h-3.5" /> Editar
                     </button>
                   )}
                   {onDelete && (
-                    <button onClick={() => onDelete(row)} className="text-red-600 hover:text-red-800">
-                      Eliminar
+                    <button onClick={() => onDelete(row)} className="inline-flex items-center gap-1 text-red-600 hover:text-red-800">
+                      <Trash2 className="w-3.5 h-3.5" /> Eliminar
                     </button>
                   )}
                 </td>

@@ -5,6 +5,7 @@ import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Modal } from '../components/Modal';
+import { CheckCircle, XCircle, Trash2 } from 'lucide-react';
 
 export default function GestionPermisos() {
   const [permisos, setPermisos] = useState<Permiso[]>([]);
@@ -99,11 +100,11 @@ export default function GestionPermisos() {
           <p className="text-sm text-gray-600">{p.motivo}</p>
           {p.estado === 'en_revision' && (
             <div className="flex gap-2 mt-2">
-              <button onClick={() => handleAprobar(p.id)} className="text-sm px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                Aprobar
+              <button onClick={() => handleAprobar(p.id)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                <CheckCircle className="w-3.5 h-3.5" /> Aprobar
               </button>
-              <button onClick={() => setRechazoModal({ id: p.id, open: true })} className="text-sm px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                Rechazar
+              <button onClick={() => setRechazoModal({ id: p.id, open: true })} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                <XCircle className="w-3.5 h-3.5" /> Rechazar
               </button>
             </div>
           )}
@@ -123,8 +124,8 @@ export default function GestionPermisos() {
                       <p className="text-sm text-gray-500">{p.fecha_inicio} - {p.motivo}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => handleAprobar(p.id)} className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">Aprobar</button>
-                      <button onClick={() => setRechazoModal({ id: p.id, open: true })} className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">Rechazar</button>
+                      <button onClick={() => handleAprobar(p.id)} className="inline-flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"><CheckCircle className="w-3.5 h-3.5" /> Aprobar</button>
+                      <button onClick={() => setRechazoModal({ id: p.id, open: true })} className="inline-flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"><XCircle className="w-3.5 h-3.5" /> Rechazar</button>
                     </div>
                   </div>
                 ))}
@@ -146,8 +147,8 @@ export default function GestionPermisos() {
               required
             />
           </div>
-          <button onClick={handleRechazar} className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
-            Rechazar Permiso
+          <button onClick={handleRechazar} className="flex items-center justify-center gap-2 w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+            <XCircle className="w-4 h-4" /> Rechazar Permiso
           </button>
         </div>
       </Modal>

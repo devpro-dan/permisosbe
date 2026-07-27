@@ -5,6 +5,7 @@ import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { Modal } from '../components/Modal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { UserPlus, Save } from 'lucide-react';
 
 export default function Usuarios() {
   const [users, setUsers] = useState<User[]>([]);
@@ -97,8 +98,8 @@ export default function Usuarios() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Usuarios</h1>
-        <button onClick={openCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-          Nuevo Usuario
+        <button onClick={openCreate} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+          <UserPlus className="w-4 h-4" /> Nuevo Usuario
         </button>
       </div>
 
@@ -171,8 +172,8 @@ export default function Usuarios() {
               <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required={!editUser} />
             </div>
           </div>
-          <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">
-            {editUser ? 'Actualizar' : 'Crear'} Usuario
+          <button type="submit" className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">
+            <Save className="w-4 h-4" /> {editUser ? 'Actualizar' : 'Crear'} Usuario
           </button>
         </form>
       </Modal>

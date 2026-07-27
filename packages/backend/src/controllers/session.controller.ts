@@ -11,6 +11,15 @@ export const sessionController = {
     }
   },
 
+  async removeAll(_req: Request, res: Response) {
+    try {
+      await sessionRepository.deleteAll();
+      res.json({ message: 'Todas las sesiones han sido cerradas' });
+    } catch (error) {
+      res.status(500).json({ message: 'Error al cerrar sesiones' });
+    }
+  },
+
   async remove(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);

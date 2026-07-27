@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { LogIn, ShieldCheck } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
@@ -86,9 +87,9 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-2 w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
           >
-            {loading ? 'Ingresando...' : step === 'login' ? 'Ingresar' : 'Verificar'}
+            {loading ? 'Ingresando...' : step === 'login' ? <><LogIn className="w-4 h-4" /> Ingresar</> : <><ShieldCheck className="w-4 h-4" /> Verificar</>}
           </button>
         </form>
       </div>
