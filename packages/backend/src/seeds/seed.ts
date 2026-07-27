@@ -16,6 +16,13 @@ async function seed() {
   try {
     await client.query('BEGIN');
 
+    const existingAdmin = await client.query('SELECT id FROM roles WHERE nombre = $1', ['admin']);
+    if (existingAdmin.rows.length > 0) {
+      console.log('Seed ya ejecutado anteriormente. Saliendo...');
+      await client.query('ROLLBACK');
+      return;
+    }
+
     const adminRoleResult = await client.query(
       `INSERT INTO roles (nombre, descripcion) VALUES ($1, $2) RETURNING id`,
       ['admin', 'Superadministrador con acceso total al sistema']
@@ -72,7 +79,8 @@ async function seed() {
     const passwordHash = await bcrypt.hash('admin123', 10);
     await client.query(
       `INSERT INTO users (nombres, rut, dv, apellido_paterno, apellido_materno, cargo, email, username, password_hash, rol_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (username) DO NOTHING`,
       [
         'Administrador',
         '11111111',
@@ -95,7 +103,8 @@ async function seed() {
 
     for (const config of configs) {
       await client.query(
-        `INSERT INTO system_config (clave, valor, descripcion) VALUES ($1, $2, $3)`,
+        `INSERT INTO system_config (clave, valor, descripcion) VALUES ($1, $2, $3)
+         ON CONFLICT (clave) DO NOTHING`,
         [config.clave, config.valor, config.descripcion]
       );
     }

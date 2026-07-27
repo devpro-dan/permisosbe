@@ -4,12 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "migrate:up": "cross-env DATABASE_URL=postgres://postgres:3st3l422@localhost:5432/local_permisos node-pg-migrate up",
-    "migrate:down": "cross-env DATABASE_URL=postgres://postgres:3st3l422@localhost:5432/local_permisos node-pg-migrate down",
+    "build": "tsc && node scripts/copy-migrations.js",
+    "start": "node dist/server.js",
+    "migrate:up": "npx -w @permisosbe/backend -y node-pg-migrate up --envPath .env --verbose",
+    "migrate:down": "npx -w @permisosbe/backend -y node-pg-migrate down --envPath .env --verbose",
     "migrate:create": "node-pg-migrate create",
+    "migrate:prod": "node-pg-migrate up",
     "seed": "ts-node src/seeds/seed.ts",
+    "seed:prod": "node dist/seeds/seed.js",
     "test": "jest --passWithNoTests --forceExit"
   },
   "dependencies": {
@@ -41,7 +43,6 @@
     "@types/qrcode": "^1.5.5",
     "@types/speakeasy": "^2.0.10",
     "@types/supertest": "^6.0.2",
-    "cross-env": "^10.1.0",
     "jest": "^29.7.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.4",
