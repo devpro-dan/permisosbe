@@ -48,7 +48,8 @@ export const permisoController = {
       const { userRepository } = require('../repositories/user.repository');
       const user = await userRepository.findById(userId);
       if (user?.email) {
-        await emailService.sendPermisoNotification(user.email, 'solicitado', permiso);
+        const restantes = await permisoService.getAvailablePermisos(userId);
+        await emailService.sendPermisoNotification(user.email, 'solicitado', permiso, user.nombres, restantes.available);
       }
 
       res.status(201).json(permiso);
@@ -89,7 +90,8 @@ export const permisoController = {
       const { userRepository } = require('../repositories/user.repository');
       const user = await userRepository.findById(permiso.user_id);
       if (user?.email) {
-        await emailService.sendPermisoNotification(user.email, 'aprobado', permiso);
+        const restantes = await permisoService.getAvailablePermisos(permiso.user_id);
+        await emailService.sendPermisoNotification(user.email, 'aprobado', permiso, user.nombres, restantes.available);
       }
 
       res.json(permiso);
@@ -117,7 +119,8 @@ export const permisoController = {
       const { userRepository } = require('../repositories/user.repository');
       const user = await userRepository.findById(permiso.user_id);
       if (user?.email) {
-        await emailService.sendPermisoNotification(user.email, 'rechazado', { ...permiso, motivo_rechazo });
+        const restantes = await permisoService.getAvailablePermisos(permiso.user_id);
+        await emailService.sendPermisoNotification(user.email, 'rechazado', { ...permiso, motivo_rechazo }, user.nombres, restantes.available);
       }
 
       res.json(permiso);

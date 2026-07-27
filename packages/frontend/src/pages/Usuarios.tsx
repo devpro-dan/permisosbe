@@ -65,6 +65,7 @@ export default function Usuarios() {
   };
 
   const handleSuspend = async (id: number, suspended: boolean) => {
+    if (!confirm(suspended ? '¿Suspender a este usuario?' : '¿Reactivar a este usuario?')) return;
     try {
       await userApi.suspend(id, suspended);
       load();

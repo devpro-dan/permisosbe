@@ -25,6 +25,7 @@ export default function GestionPermisos() {
   useEffect(() => { load(); }, []);
 
   const handleAprobar = async (id: number) => {
+    if (!confirm('¿Aprobar este permiso?')) return;
     try {
       await permisoApi.aprobar(id);
       load();

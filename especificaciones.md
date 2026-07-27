@@ -122,6 +122,11 @@ usar siempre tablas.
 - Si el sistema necesita envios de correos usar por defecto smtp gmail con contraseñas de aplicacion. se debe poder configurar a traves de un formulario en el frontend toda esta informacion.
 - Incluir style en los correos para que se vean mas profesionales, de ser posible usar plantilla html.
 
+## LOG
+- se debe crear un archivo txt que registre cada uno de los eventos del sistema, ingreso, errores.
+- se debe registrar en una tabla todas las acciones que realiza cada usuario, indicando claramente que tipo de accion realizo y en que tabla, create, update, delete, etc.
+
+
  
 
 
