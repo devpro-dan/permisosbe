@@ -86,8 +86,8 @@ export const authController = {
         res.status(404).json({ message: 'Usuario no encontrado' });
         return;
       }
-      const { password_hash, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      const { password_hash, rol_id, ...rest } = user;
+      res.json({ ...rest, rolId: rol_id });
     } catch (error) {
       res.status(500).json({ message: 'Error al obtener perfil' });
     }
