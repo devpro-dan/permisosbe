@@ -25,6 +25,69 @@ function formatearFechaLetras(fecha: Date): string {
 }
 
 export const reporteService = {
+  generarReporteGeneralPDF(permisos: any[], filters: { employee?: string; startDate?: string; endDate?: string; year?: number }): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 45 });
+      const buffers: Buffer[] = [];
+      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      doc.fontSize(19).text('Reporte General de Permisos Administrativos', { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(10).text(`Filtros: ${filters.employee || 'Todos los funcionarios'} | Año: ${filters.year || 'Todos'}`);
+      doc.text(`Período: ${filters.startDate || 'Inicio'} a ${filters.endDate || 'Actualidad'}`);
+      doc.text(`Registros: ${permisos.length}`);
+      doc.moveDown();
+      doc.fontSize(9);
+
+      permisos.forEach((p, index) => {
+        const funcionario = `${p.nombres || ''} ${p.apellido_paterno || ''}`.trim();
+        const fechas = `${fmtDate(p.fecha_inicio)}${p.fecha_fin ? ` - ${fmtDate(p.fecha_fin)}` : ''}`;
+        const dias = calcularDias(p.fecha_inicio, p.fecha_fin);
+        doc.text(`${index + 1}. ${funcionario} | ${p.rut}-${p.dv} | ${fechas} | ${dias} días | ${p.estado} | ${p.motivo}`);
+        doc.moveDown(0.35);
+      });
+      if (permisos.length === 0) doc.text('No hay permisos para los filtros seleccionados.');
+      doc.end();
+    });
+  },
+
+  async generarReporteGeneralExcel(permisos: any[], filters: { employee?: string; startDate?: string; endDate?: string; year?: number }): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Reporte General');
+    sheet.addRow(['Reporte General de Permisos Administrativos']);
+    sheet.addRow(['Funcionario', filters.employee || 'Todos', 'Año', filters.year || 'Todos', 'Desde', filters.startDate || 'Todas', 'Hasta', filters.endDate || 'Todas']);
+    sheet.addRow([]);
+    sheet.columns = [
+      { header: '#', key: 'id', width: 6 },
+      { header: 'Funcionario', key: 'funcionario', width: 32 },
+      { header: 'RUT', key: 'rut', width: 15 },
+      { header: 'Fecha Solicitud', key: 'fecha_solicitud', width: 18 },
+      { header: 'Fecha Inicio', key: 'fecha_inicio', width: 15 },
+      { header: 'Fecha Fin', key: 'fecha_fin', width: 15 },
+      { header: 'Días', key: 'dias', width: 10 },
+      { header: 'Jornada', key: 'tipo_jornada', width: 15 },
+      { header: 'Estado', key: 'estado', width: 15 },
+      { header: 'Motivo', key: 'motivo', width: 40 },
+    ];
+    permisos.forEach((p) => sheet.addRow({
+      id: p.id,
+      funcionario: `${p.nombres || ''} ${p.apellido_paterno || ''}`.trim(),
+      rut: `${p.rut}-${p.dv}`,
+      fecha_solicitud: p.fecha_solicitud,
+      fecha_inicio: p.fecha_inicio,
+      fecha_fin: p.fecha_fin || '',
+      dias: calcularDias(p.fecha_inicio, p.fecha_fin),
+      tipo_jornada: p.tipo_jornada,
+      estado: p.estado,
+      motivo: p.motivo,
+    }));
+    sheet.getRow(1).font = { bold: true, size: 14 };
+    sheet.getRow(4).font = { bold: true };
+    return Buffer.from(await workbook.xlsx.writeBuffer());
+  },
+
   generarPDF(permisos: any[], usuario: { nombres: string; apellido_paterno: string; rut: string }): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });

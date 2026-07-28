@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-export function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: number[] }) {
+export function ProtectedRoute({ children, allowedRoles, permission }: { children: React.ReactNode; allowedRoles?: number[]; permission?: string }) {
   const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
 
@@ -21,6 +21,10 @@ export function ProtectedRoute({ children, allowedRoles }: { children: React.Rea
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.rolId)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (permission && user && !user.permissions?.some((item) => item.seccion === permission && item.can_view)) {
     return <Navigate to="/dashboard" replace />;
   }
 

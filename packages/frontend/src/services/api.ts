@@ -94,6 +94,8 @@ export const permisoApi = {
   rechazar: (id: number, motivo_rechazo: string) => api.post(`/permisos/${id}/rechazar`, { motivo_rechazo }),
   reportePDF: (year?: number) => api.get('/permisos/reporte/pdf', { params: { year }, responseType: 'blob' }),
   reporteExcel: (year?: number) => api.get('/permisos/reporte/excel', { params: { year }, responseType: 'blob' }),
+  reporteGeneralPDF: (params: Record<string, string | number>) => api.get('/permisos/reporte/general/pdf', { params, responseType: 'blob' }),
+  reporteGeneralExcel: (params: Record<string, string | number>) => api.get('/permisos/reporte/general/excel', { params, responseType: 'blob' }),
   certificado: (id: number) => api.get(`/permisos/${id}/certificado`, { responseType: 'blob' }),
 };
 

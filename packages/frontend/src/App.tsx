@@ -13,6 +13,7 @@ import Roles from './pages/Roles';
 import Configuracion from './pages/Configuracion';
 import Sesiones from './pages/Sesiones';
 import NotFound from './pages/NotFound';
+import Reportes from './pages/Reportes';
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/mis-permisos" element={<ProtectedRoute allowedRoles={[3]}><MisPermisos /></ProtectedRoute>} />
             <Route path="/solicitar-permiso" element={<ProtectedRoute allowedRoles={[3]}><SolicitarPermiso /></ProtectedRoute>} />
             <Route path="/gestion-permisos" element={<ProtectedRoute allowedRoles={[1, 2]}><GestionPermisos /></ProtectedRoute>} />
+            <Route path="/reportes" element={<ProtectedRoute permission="reportes"><Reportes /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute allowedRoles={[1]}><Usuarios /></ProtectedRoute>} />
             <Route path="/roles" element={<ProtectedRoute allowedRoles={[1]}><Roles /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute allowedRoles={[1]}><Configuracion /></ProtectedRoute>} />

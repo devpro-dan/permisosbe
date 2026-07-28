@@ -254,4 +254,44 @@ export const permisoController = {
       res.status(500).json({ message: 'Error al generar Excel' });
     }
   },
+
+  async reporteGeneralPDF(req: Request, res: Response) {
+    try {
+      const filters = {
+        employee: (req.query.employee as string) || undefined,
+        startDate: (req.query.startDate as string) || undefined,
+        endDate: (req.query.endDate as string) || undefined,
+        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
+      };
+      const permisos = await permisoService.findForReport(filters);
+      const { reporteService } = require('../services/reporte.service');
+      const pdfBuffer = await reporteService.generarReporteGeneralPDF(permisos, filters);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename=reporte_general_permisos.pdf');
+      res.send(pdfBuffer);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al generar reporte general PDF' });
+    }
+  },
+
+  async reporteGeneralExcel(req: Request, res: Response) {
+    try {
+      const filters = {
+        employee: (req.query.employee as string) || undefined,
+        startDate: (req.query.startDate as string) || undefined,
+        endDate: (req.query.endDate as string) || undefined,
+        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
+      };
+      const permisos = await permisoService.findForReport(filters);
+      const { reporteService } = require('../services/reporte.service');
+      const excelBuffer = await reporteService.generarReporteGeneralExcel(permisos, filters);
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=reporte_general_permisos.xlsx');
+      res.send(excelBuffer);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al generar reporte general Excel' });
+    }
+  },
 };

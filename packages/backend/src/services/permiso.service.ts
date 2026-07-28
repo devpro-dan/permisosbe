@@ -132,4 +132,42 @@ export const permisoService = {
     );
     return result.rows;
   },
+
+  async findForReport(filters: { employee?: string; startDate?: string; endDate?: string; year?: number }) {
+    const conditions: string[] = [];
+    const values: unknown[] = [];
+    let index = 1;
+
+    if (filters.employee) {
+      conditions.push(`(u.nombres || ' ' || u.apellido_paterno ILIKE $${index} OR u.rut || '-' || u.dv ILIKE $${index})`);
+      values.push(`%${filters.employee}%`);
+      index++;
+    }
+    if (filters.startDate) {
+      conditions.push(`COALESCE(p.fecha_fin, p.fecha_inicio) >= $${index}`);
+      values.push(filters.startDate);
+      index++;
+    }
+    if (filters.endDate) {
+      conditions.push(`p.fecha_inicio <= $${index}`);
+      values.push(filters.endDate);
+      index++;
+    }
+    if (filters.year) {
+      conditions.push(`EXTRACT(YEAR FROM p.fecha_solicitud) = $${index}`);
+      values.push(filters.year);
+      index++;
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await pool.query(
+      `SELECT p.*, u.nombres, u.apellido_paterno, u.apellido_materno, u.rut, u.dv, u.cargo
+       FROM permisos_administrativos p
+       JOIN users u ON u.id = p.user_id
+       ${where}
+       ORDER BY p.fecha_inicio DESC, u.apellido_paterno ASC`,
+      values
+    );
+    return result.rows;
+  },
 };

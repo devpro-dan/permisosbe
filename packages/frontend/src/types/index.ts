@@ -84,4 +84,5 @@ export interface AuthUser {
   username: string;
   rolId: number;
   can_change_password: boolean;
+  permissions?: RolePermission[];
 }

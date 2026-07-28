@@ -91,7 +91,11 @@ export const authController = {
         return;
       }
       const { password_hash, rol_id, ...rest } = user;
-      res.json({ ...rest, rolId: rol_id });
+      const permissions = await pool.query(
+        'SELECT seccion, can_view, can_create, can_edit, can_delete FROM role_permissions WHERE rol_id = $1',
+        [rol_id]
+      );
+      res.json({ ...rest, rolId: rol_id, permissions: permissions.rows });
     } catch (error) {
       res.status(500).json({ message: 'Error al obtener perfil' });
     }

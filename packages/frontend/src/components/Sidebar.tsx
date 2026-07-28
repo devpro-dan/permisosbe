@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useState } from 'react';
-import { LayoutDashboard, ClipboardList, FilePlus, ClipboardCheck, Users, Shield, Settings, History, Menu, X, LogOut } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, FilePlus, ClipboardCheck, Users, Shield, Settings, History, FileBarChart, Menu, X, LogOut } from 'lucide-react';
 
 const iconMap: Record<string, React.ReactNode> = {
   Dashboard: <LayoutDashboard className="w-4 h-4" />,
@@ -12,6 +12,7 @@ const iconMap: Record<string, React.ReactNode> = {
   Roles: <Shield className="w-4 h-4" />,
   Configuración: <Settings className="w-4 h-4" />,
   Sesiones: <History className="w-4 h-4" />,
+  Reportes: <FileBarChart className="w-4 h-4" />,
 };
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
   { label: 'Mis Permisos', path: '/mis-permisos', roles: [3] },
   { label: 'Solicitar Permiso', path: '/solicitar-permiso', roles: [3] },
   { label: 'Gestionar Permisos', path: '/gestion-permisos', roles: [1, 2] },
+  { label: 'Reportes', path: '/reportes', roles: [1, 2] },
   { label: 'Usuarios', path: '/usuarios', roles: [1] },
   { label: 'Roles', path: '/roles', roles: [1] },
   { label: 'Configuración', path: '/configuracion', roles: [1] },
@@ -29,7 +31,13 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const filtered = navItems.filter((item) => user && item.roles.includes(user.rolId));
+  const filtered = navItems.filter((item) => {
+    if (!user || !item.roles.includes(user.rolId)) return false;
+    if (item.path === '/reportes') {
+      return user.permissions?.some((permission) => permission.seccion === 'reportes' && permission.can_view) ?? false;
+    }
+    return true;
+  });
 
   return (
     <>
