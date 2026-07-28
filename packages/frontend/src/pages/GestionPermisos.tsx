@@ -1,18 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { permisoApi } from '../services/api';
 import { Permiso } from '../types';
 import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Modal } from '../components/Modal';
-import { CheckCircle, XCircle, Trash2, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, FileText, Search, Calendar, X } from 'lucide-react';
 import { formatDate } from '../utils/format';
+
+const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, tipoJornada: string): number => {
+  const inicio = new Date(fechaInicio);
+  const fin = fechaFin ? new Date(fechaFin) : new Date(fechaInicio);
+  
+  const diffTime = Math.abs(fin.getTime() - inicio.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  
+  return tipoJornada === 'media' ? diffDays * 0.5 : diffDays;
+};
 
 export default function GestionPermisos() {
   const [permisos, setPermisos] = useState<Permiso[]>([]);
   const [loading, setLoading] = useState(true);
   const [rechazoModal, setRechazoModal] = useState<{ id: number; open: boolean }>({ id: 0, open: false });
   const [motivoRechazo, setMotivoRechazo] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -23,6 +36,32 @@ export default function GestionPermisos() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const permisosFiltrados = useMemo(() => {
+    return permisos.filter((p) => {
+      const nombreCompleto = `${p.nombres} ${p.apellido_paterno}`.toLowerCase();
+      const rut = `${p.rut}${p.dv}`.toLowerCase();
+      const searchMatch = searchTerm === '' || nombreCompleto.includes(searchTerm.toLowerCase()) || rut.includes(searchTerm.toLowerCase());
+
+      let dateMatch = true;
+      if (fechaInicio || fechaFin) {
+        const permisoInicio = new Date(p.fecha_inicio);
+        const permisoFin = p.fecha_fin ? new Date(p.fecha_fin) : permisoInicio;
+        
+        if (fechaInicio) {
+          const filterInicio = new Date(fechaInicio);
+          dateMatch = dateMatch && (permisoFin >= filterInicio);
+        }
+        
+        if (fechaFin) {
+          const filterFin = new Date(fechaFin);
+          dateMatch = dateMatch && (permisoInicio <= filterFin);
+        }
+      }
+
+      return searchMatch && dateMatch;
+    });
+  }, [permisos, searchTerm, fechaInicio, fechaFin]);
 
   const handleAprobar = async (id: number) => {
     if (!confirm('¿Aprobar este permiso?')) return;
@@ -69,6 +108,12 @@ export default function GestionPermisos() {
     }
   };
 
+  const limpiarFiltros = () => {
+    setSearchTerm('');
+    setFechaInicio('');
+    setFechaFin('');
+  };
+
   const estadoBadge = (estado: string) => {
     const colors: Record<string, string> = {
       en_revision: 'bg-warning-100 text-warning-800',
@@ -88,7 +133,19 @@ export default function GestionPermisos() {
     { key: 'nombres', label: 'Trabajador', render: (_: any, row: Permiso) => `${row.nombres} ${row.apellido_paterno}` },
     { key: 'rut', label: 'RUT', render: (_: any, row: Permiso) => `${row.rut}-${row.dv}` },
     { key: 'fecha_inicio', label: 'Inicio', render: (v: string) => formatDate(v) },
-    { key: 'fecha_fin', label: 'Fin', render: (v: string) => formatDate(v) },
+    { key: 'fecha_fin', label: 'Fin', render: (v: string) => v ? formatDate(v) : '-' },
+    { 
+      key: 'dias', 
+      label: 'Días', 
+      render: (_: any, row: Permiso) => {
+        const dias = calcularDias(row.fecha_inicio, row.fecha_fin, row.tipo_jornada);
+        return (
+          <span className="font-semibold text-primary-700">
+            {dias} {dias === 1 ? 'día' : 'días'}
+          </span>
+        );
+      }
+    },
     { key: 'tipo_jornada', label: 'Jornada', render: (v: string) => v === 'completa' ? 'Completa' : 'Media' },
     { key: 'estado', label: 'Estado', render: (_: any, row: Permiso) => estadoBadge(row.estado) },
     { key: 'motivo', label: 'Motivo' },
@@ -106,17 +163,78 @@ export default function GestionPermisos() {
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Gestión de Permisos</h1>
 
+      <div className="bg-white rounded-lg shadow p-4 mb-6 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Search className="inline w-4 h-4 mr-1" />
+              Buscar Funcionario
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Nombre o RUT..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Calendar className="inline w-4 h-4 mr-1" />
+              Fecha Inicio
+            </label>
+            <input
+              type="date"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Calendar className="inline w-4 h-4 mr-1" />
+              Fecha Fin
+            </label>
+            <input
+              type="date"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+            />
+          </div>
+        </div>
+
+        {(searchTerm || fechaInicio || fechaFin) && (
+          <div className="flex items-center justify-between bg-primary-50 border border-primary-200 rounded-lg p-3">
+            <p className="text-sm text-primary-800">
+              Mostrando <span className="font-semibold">{permisosFiltrados.length}</span> de <span className="font-semibold">{permisos.length}</span> permisos
+            </p>
+            <button
+              onClick={limpiarFiltros}
+              className="inline-flex items-center gap-1 text-sm text-primary-700 hover:text-primary-900 font-medium"
+            >
+              <X className="w-4 h-4" /> Limpiar filtros
+            </button>
+          </div>
+        )}
+      </div>
+
       <DataTable
         columns={columns}
-        data={permisos}
+        data={permisosFiltrados}
         onDelete={(row) => handleDelete(row.id)}
       />
 
-      {permisos.map((p) => (
+      {permisosFiltrados.map((p) => (
         <MobileCard key={p.id} onDelete={() => handleDelete(p.id)}>
           <p className="font-medium">{p.nombres} {p.apellido_paterno}</p>
           <p className="text-sm text-gray-500">{p.rut}-{p.dv}</p>
           <p className="text-sm">{formatDate(p.fecha_inicio)}{p.fecha_fin ? ` - ${formatDate(p.fecha_fin)}` : ''}</p>
+          <p className="text-sm font-semibold text-primary-700">
+            {calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días
+          </p>
           <div className="flex items-center gap-2">
             {estadoBadge(p.estado)}
             <span className="text-xs text-gray-500">{p.tipo_jornada === 'completa' ? 'Completa' : 'Media'}</span>
@@ -140,17 +258,19 @@ export default function GestionPermisos() {
         </MobileCard>
       ))}
 
-      {permisos.length > 0 && (
+      {permisosFiltrados.length > 0 && (
         <div className="hidden md:block">
-          {permisos.filter(p => p.estado === 'en_revision').length > 0 && (
+          {permisosFiltrados.filter(p => p.estado === 'en_revision').length > 0 && (
             <div className="mt-4 space-y-2">
               <h2 className="font-semibold text-gray-700 mb-2">Acciones Pendientes</h2>
               <div className="grid gap-2">
-                {permisos.filter(p => p.estado === 'en_revision').map((p) => (
+                {permisosFiltrados.filter(p => p.estado === 'en_revision').map((p) => (
                   <div key={p.id} className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
                     <div>
                       <p className="font-medium">{p.nombres} {p.apellido_paterno}</p>
-                      <p className="text-sm text-gray-500">{formatDate(p.fecha_inicio)} - {p.motivo}</p>
+                      <p className="text-sm text-gray-500">
+                        {formatDate(p.fecha_inicio)} - {calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días - {p.motivo}
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleAprobar(p.id)} className="inline-flex items-center gap-1 px-3 py-1 bg-success-600 text-white rounded-lg text-sm hover:bg-success-700"><CheckCircle className="w-3.5 h-3.5" /> Aprobar</button>

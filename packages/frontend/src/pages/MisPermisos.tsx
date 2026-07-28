@@ -7,6 +7,16 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import { FileText, FileSpreadsheet, FileCheck } from 'lucide-react';
 import { formatDate } from '../utils/format';
 
+const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, tipoJornada: string): number => {
+  const inicio = new Date(fechaInicio);
+  const fin = fechaFin ? new Date(fechaFin) : new Date(fechaInicio);
+  
+  const diffTime = Math.abs(fin.getTime() - inicio.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  
+  return tipoJornada === 'media' ? diffDays * 0.5 : diffDays;
+};
+
 export default function MisPermisos() {
   const [permisos, setPermisos] = useState<Permiso[]>([]);
   const [disponibilidad, setDisponibilidad] = useState<Disponibilidad | null>(null);
@@ -77,7 +87,19 @@ export default function MisPermisos() {
   const columns = [
     { key: 'fecha_solicitud', label: 'Fecha Solicitud', render: (v: string) => formatDate(v) },
     { key: 'fecha_inicio', label: 'Fecha Inicio', render: (v: string) => formatDate(v) },
-    { key: 'fecha_fin', label: 'Fecha Fin', render: (v: string) => formatDate(v) },
+    { key: 'fecha_fin', label: 'Fecha Fin', render: (v: string) => v ? formatDate(v) : '-' },
+    { 
+      key: 'dias', 
+      label: 'Días', 
+      render: (_: any, row: Permiso) => {
+        const dias = calcularDias(row.fecha_inicio, row.fecha_fin, row.tipo_jornada);
+        return (
+          <span className="font-semibold text-primary-700">
+            {dias} {dias === 1 ? 'día' : 'días'}
+          </span>
+        );
+      }
+    },
     { key: 'tipo_jornada', label: 'Jornada', render: (v: string) => v === 'completa' ? 'Completa' : 'Media' },
     { key: 'estado', label: 'Estado', render: (_: any, row: Permiso) => estadoBadge(row.estado) },
     { key: 'motivo', label: 'Motivo' },
@@ -134,6 +156,9 @@ export default function MisPermisos() {
             </div>
             {estadoBadge(p.estado)}
           </div>
+          <p className="text-sm font-semibold text-primary-700">
+            {calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días
+          </p>
           <p className="text-sm text-gray-600"><strong>Jornada:</strong> {p.tipo_jornada === 'completa' ? 'Completa' : 'Media'}</p>
           <p className="text-sm text-gray-600"><strong>Motivo:</strong> {p.motivo}</p>
           {p.motivo_rechazo && <p className="text-sm text-red-600"><strong>Rechazo:</strong> {p.motivo_rechazo}</p>}
