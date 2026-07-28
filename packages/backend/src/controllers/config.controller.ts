@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { systemConfigRepository } from '../repositories/systemConfig.repository';
+import { emailService } from '../services/email.service';
 
 const SENSITIVE_KEYS = ['smtp_pass'];
 
@@ -52,6 +53,21 @@ export const configController = {
       res.json(maskSensitive(config));
     } catch (error) {
       res.status(500).json({ message: 'Error al guardar configuración' });
+    }
+  },
+
+  async testEmail(req: Request, res: Response) {
+    try {
+      const { email } = req.body;
+      if (!email || typeof email !== 'string') {
+        res.status(400).json({ message: 'El correo de destino es requerido' });
+        return;
+      }
+
+      await emailService.sendTestEmail(email.trim());
+      res.json({ message: `Correo de prueba enviado a ${email.trim()}` });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'No se pudo enviar el correo de prueba' });
     }
   },
 };

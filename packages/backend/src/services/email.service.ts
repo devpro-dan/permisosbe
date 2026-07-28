@@ -57,29 +57,27 @@ function detailTable(data: any, extraRows?: [string, string][]): string {
 
 let transporter: nodemailer.Transporter | null = null;
 
-async function getTransporter() {
-  if (transporter) return transporter;
-
+async function createTransporter() {
   const smtpHost = await systemConfigRepository.findByClave('smtp_host');
   const smtpPort = await systemConfigRepository.findByClave('smtp_port');
   const smtpUser = await systemConfigRepository.findByClave('smtp_user');
   const smtpPass = await systemConfigRepository.findByClave('smtp_pass');
-  const smtpFrom = await systemConfigRepository.findByClave('smtp_from');
 
-  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !smtpHost.valor || !smtpPort.valor || !smtpUser.valor || !smtpPass.valor) {
+  if (!smtpHost?.valor || !smtpPort?.valor || !smtpUser?.valor || !smtpPass?.valor) {
     return null;
   }
 
-  transporter = nodemailer.createTransport({
+  return nodemailer.createTransport({
     host: smtpHost.valor,
     port: parseInt(smtpPort.valor, 10),
     secure: parseInt(smtpPort.valor, 10) === 465,
-    auth: {
-      user: smtpUser.valor,
-      pass: smtpPass.valor,
-    },
+    auth: { user: smtpUser.valor, pass: smtpPass.valor },
   });
+}
 
+async function getTransporter() {
+  if (transporter) return transporter;
+  transporter = await createTransporter();
   return transporter;
 }
 
@@ -108,6 +106,26 @@ function getEmailTemplate(title: string, body: string): string {
 }
 
 export const emailService = {
+  async sendTestEmail(email: string) {
+    const testTransporter = await createTransporter();
+    if (!testTransporter) {
+      throw new Error('SMTP no configurado. Completa todos los campos SMTP y guarda la configuración.');
+    }
+
+    const smtpFrom = await systemConfigRepository.findByClave('smtp_from');
+    const from = smtpFrom?.valor || 'noreply@permisosbe.com';
+
+    await testTransporter.sendMail({
+      from: `"PermisosBE" <${from}>`,
+      to: email,
+      subject: 'Prueba de configuración SMTP - PermisosBE',
+      html: getEmailTemplate('Prueba de correo exitosa', `
+        <p style="color:#374151;font-size:15px;line-height:1.6;">Este correo confirma que la configuración SMTP funciona correctamente.</p>
+        <p style="color:#374151;font-size:15px;line-height:1.6;">Puedes utilizar el servicio de correo del sistema.</p>
+      `),
+    });
+  },
+
   async sendPermisoNotification(email: string, tipo: string, data: any, userName?: string, available?: number) {
     const transport = await getTransporter();
     if (!transport) {

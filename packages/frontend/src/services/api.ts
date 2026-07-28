@@ -101,6 +101,7 @@ export const configApi = {
   list: () => api.get('/config'),
   getByClave: (clave: string) => api.get(`/config/${clave}`),
   set: (data: any) => api.post('/config', data),
+  testEmail: (email: string) => api.post('/config/test-email', { email }),
 };
 
 export const sessionApi = {

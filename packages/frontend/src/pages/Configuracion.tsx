@@ -3,7 +3,7 @@ import { configApi } from '../services/api';
 import { SystemConfig } from '../types';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { toast } from '../components/Toast';
-import { Save } from 'lucide-react';
+import { Save, Send } from 'lucide-react';
 
 const CONFIG_META: Record<string, { label: string; type: string; desc: string; group: string }> = {
   permisos_por_anio: { label: 'Permisos por Año', type: 'number', desc: 'Cantidad máxima de permisos administrativos por año', group: 'Sistema' },
@@ -25,6 +25,8 @@ export default function Configuracion() {
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [savingSingle, setSavingSingle] = useState<string | null>(null);
   const [savingSmtp, setSavingSmtp] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
+  const [testingEmail, setTestingEmail] = useState(false);
 
   const load = async () => {
     try {
@@ -72,6 +74,23 @@ export default function Configuracion() {
     }
   };
 
+  const handleTestEmail = async () => {
+    if (!testEmail.trim()) {
+      toast({ message: 'Ingresa un correo de destino', type: 'error' });
+      return;
+    }
+
+    setTestingEmail(true);
+    try {
+      await configApi.testEmail(testEmail.trim());
+      toast({ message: 'Correo de prueba enviado correctamente', type: 'success' });
+    } catch (err: any) {
+      toast({ message: err.response?.data?.message || 'No se pudo enviar el correo de prueba', type: 'error' });
+    } finally {
+      setTestingEmail(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -116,6 +135,26 @@ export default function Configuracion() {
                   >
                     <Save className="w-4 h-4" /> {savingSmtp ? 'Guardando configuración SMTP...' : 'Guardar Configuración SMTP'}
                   </button>
+                  <div className="mt-5 border-t pt-5">
+                    <label className="block font-medium text-gray-700 mb-1">Probar envío de correo</label>
+                    <p className="text-xs text-gray-500 mb-2">Guarda la configuración SMTP antes de realizar la prueba.</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={testEmail}
+                        onChange={(e) => setTestEmail(e.target.value)}
+                        placeholder="correo de destino"
+                        className="flex-1 px-4 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={handleTestEmail}
+                        disabled={testingEmail}
+                        className="inline-flex items-center gap-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-sm disabled:opacity-50 whitespace-nowrap"
+                      >
+                        <Send className="w-3.5 h-3.5" /> {testingEmail ? 'Enviando...' : 'Enviar prueba'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
