@@ -169,7 +169,7 @@ export const authController = {
         [user.id, token, expiresAt]
       );
 
-      const resetLink = `${env.FRONTEND_URL}/reset-password?token=${token}`;
+      const resetLink = `${env.URL_CLIENT}/reset-password?token=${token}`;
 
       console.log('🔗 Enlace de restablecimiento:', resetLink);
 

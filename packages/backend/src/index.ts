@@ -8,11 +8,17 @@ import roleRoutes from './routes/role.routes';
 import permisoRoutes from './routes/permiso.routes';
 import configRoutes from './routes/config.routes';
 import sessionRoutes from './routes/session.routes';
+import { env } from './config/env';
 
 const app = express();
 
 app.use(helmet());
-app.use(cors());
+const allowedOrigins = env.URL_CLIENT.split(',').map((origin) => origin.trim()).filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 app.use(morgan('dev'));
 app.use(express.json());
 
