@@ -1,6 +1,12 @@
 {
   "name": "permisosbe",
   "private": true,
+  "scripts": {
+    "backend:build": "npm run build --prefix packages/backend",
+    "backend:start": "npm run start --prefix packages/backend",
+    "backend:migrate": "npm run migrate:prod --prefix packages/backend",
+    "backend:seed": "npm run seed:prod --prefix packages/backend"
+  },
   "workspaces": [
     "packages/*"
   ]
