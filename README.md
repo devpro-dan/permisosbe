@@ -82,6 +82,14 @@ JWT_SECRET=mi-secreto-super-seguro
 JWT_EXPIRES_IN=2h
 ```
 
+Para configurar la URL del backend en el frontend, crear `packages/frontend/.env`:
+
+```
+VITE_API_URL=http://localhost:3000
+```
+
+En producción, reemplazarla por la URL pública del backend. Vite expone las variables del frontend únicamente si comienzan con `VITE_`.
+
 ### 4. Ejecutar migraciones
 
 ```bash

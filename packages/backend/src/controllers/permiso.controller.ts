@@ -185,6 +185,32 @@ export const permisoController = {
     }
   },
 
+  async certificado(req: Request, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const permiso = await permisoService.findById(id);
+
+      if (!permiso) {
+        res.status(404).json({ message: 'Permiso no encontrado' });
+        return;
+      }
+
+      if (permiso.estado !== 'aprobado') {
+        res.status(400).json({ message: 'El permiso debe estar aprobado para generar el certificado' });
+        return;
+      }
+
+      const { reporteService } = require('../services/reporte.service');
+      const pdfBuffer = await reporteService.generarCertificadoAprobacion(permiso, permiso);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=certificado_permiso_${id}.pdf`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al generar certificado' });
+    }
+  },
+
   async reportePDF(req: Request, res: Response) {
     try {
       const userId = req.user!.userId;
