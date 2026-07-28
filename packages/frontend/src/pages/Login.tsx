@@ -36,7 +36,11 @@ export default function Login() {
         navigate('/dashboard');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error de autenticación');
+      if (!err.response) {
+        setError('Error de conexión. Verifica que el servidor esté en ejecución.');
+      } else {
+        setError(err.response?.data?.message || 'Error de autenticación');
+      }
     } finally {
       setLoading(false);
     }

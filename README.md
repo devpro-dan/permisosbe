@@ -65,6 +65,8 @@ createdb permisosbe
 
 ### 3. Configurar variables de entorno
 
+**Backend:**
+
 ```bash
 cp packages/backend/.env.example packages/backend/.env
 ```
@@ -80,15 +82,25 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 JWT_SECRET=mi-secreto-super-seguro
 JWT_EXPIRES_IN=2h
+URL_CLIENT=http://localhost:5173
 ```
 
-Para configurar la URL del backend en el frontend, crear `packages/frontend/.env`:
+**Frontend:**
+
+```bash
+cp packages/frontend/.env.example packages/frontend/.env
+```
+
+Configurar la URL del backend en `packages/frontend/.env`:
 
 ```
 VITE_API_URL=http://localhost:3000
 ```
 
-En producción, reemplazarla por la URL pública del backend. Vite expone las variables del frontend únicamente si comienzan con `VITE_`.
+**Importante:** 
+- En producción, `URL_CLIENT` debe ser la URL del frontend y `VITE_API_URL` la URL pública del backend.
+- Las variables de frontend deben comenzar con `VITE_` para ser expuestas por Vite.
+- Ambos archivos `.env` están en `.gitignore` y no se deben commitear.
 
 ### 4. Ejecutar migraciones
 
