@@ -112,7 +112,7 @@ export default function Configuracion() {
                   <button
                     onClick={handleSaveSmtp}
                     disabled={savingSmtp}
-                    className="flex items-center justify-center gap-2 mt-5 w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 mt-5 w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
                   >
                     <Save className="w-4 h-4" /> {savingSmtp ? 'Guardando configuración SMTP...' : 'Guardar Configuración SMTP'}
                   </button>
@@ -141,7 +141,7 @@ export default function Configuracion() {
                         <button
                           onClick={() => handleSaveSingle(config.clave)}
                           disabled={savingSingle === config.clave}
-                          className="inline-flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm disabled:opacity-50 whitespace-nowrap"
+                          className="inline-flex items-center gap-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm disabled:opacity-50 whitespace-nowrap"
                         >
                           <Save className="w-3.5 h-3.5" /> {savingSingle === config.clave ? 'Guardando...' : 'Guardar'}
                         </button>

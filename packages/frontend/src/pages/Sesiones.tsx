@@ -61,7 +61,7 @@ export default function Sesiones() {
         {sessions.length > 0 && (
           <button
             onClick={handleDeleteAll}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-danger-600 text-white rounded-lg text-sm hover:bg-danger-700"
           >
             <LogOut className="w-4 h-4" /> Cerrar Todas
           </button>

@@ -115,7 +115,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center justify-center gap-2 w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-2 w-full py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
           >
             {loading ? 'Ingresando...' : step === 'login' ? <><LogIn className="w-4 h-4" /> Ingresar</> : <><ShieldCheck className="w-4 h-4" /> Verificar</>}
           </button>
@@ -149,7 +149,7 @@ export default function Login() {
                 </div>
                 <button
                   onClick={closeForgot}
-                  className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
+                  className="w-full py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg"
                 >
                   Volver al inicio de sesión
                 </button>

@@ -5,7 +5,7 @@ import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Modal } from '../components/Modal';
-import { CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, FileText } from 'lucide-react';
 import { formatDate } from '../utils/format';
 
 export default function GestionPermisos() {
@@ -45,6 +45,20 @@ export default function GestionPermisos() {
     }
   };
 
+  const handleDescargarCertificado = async (id: number) => {
+    try {
+      const res = await permisoApi.certificado(id);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `certificado_permiso_${id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al descargar certificado');
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm('¿Eliminar este permiso?')) return;
     try {
@@ -57,9 +71,9 @@ export default function GestionPermisos() {
 
   const estadoBadge = (estado: string) => {
     const colors: Record<string, string> = {
-      en_revision: 'bg-yellow-100 text-yellow-800',
-      aprobado: 'bg-green-100 text-green-800',
-      rechazado: 'bg-red-100 text-red-800',
+      en_revision: 'bg-warning-100 text-warning-800',
+      aprobado: 'bg-success-100 text-success-800',
+      rechazado: 'bg-danger-100 text-danger-800',
     };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[estado] || 'bg-gray-100'}`}>
@@ -78,6 +92,14 @@ export default function GestionPermisos() {
     { key: 'tipo_jornada', label: 'Jornada', render: (v: string) => v === 'completa' ? 'Completa' : 'Media' },
     { key: 'estado', label: 'Estado', render: (_: any, row: Permiso) => estadoBadge(row.estado) },
     { key: 'motivo', label: 'Motivo' },
+    {
+      key: 'certificado', label: 'Certificado', render: (_: any, row: Permiso) =>
+        row.estado === 'aprobado' ? (
+          <button onClick={() => handleDescargarCertificado(row.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+            <FileText className="w-3.5 h-3.5" /> Descargar
+          </button>
+        ) : null,
+    },
   ];
 
   return (
@@ -102,13 +124,18 @@ export default function GestionPermisos() {
           <p className="text-sm text-gray-600">{p.motivo}</p>
           {p.estado === 'en_revision' && (
             <div className="flex gap-2 mt-2">
-              <button onClick={() => handleAprobar(p.id)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700">
+              <button onClick={() => handleAprobar(p.id)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-success-600 text-white rounded-lg hover:bg-success-700">
                 <CheckCircle className="w-3.5 h-3.5" /> Aprobar
               </button>
-              <button onClick={() => setRechazoModal({ id: p.id, open: true })} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700">
+              <button onClick={() => setRechazoModal({ id: p.id, open: true })} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-danger-600 text-white rounded-lg hover:bg-danger-700">
                 <XCircle className="w-3.5 h-3.5" /> Rechazar
               </button>
             </div>
+          )}
+          {p.estado === 'aprobado' && (
+            <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2">
+              <FileText className="w-3.5 h-3.5" /> Descargar Certificado
+            </button>
           )}
         </MobileCard>
       ))}
@@ -126,8 +153,8 @@ export default function GestionPermisos() {
                       <p className="text-sm text-gray-500">{formatDate(p.fecha_inicio)} - {p.motivo}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => handleAprobar(p.id)} className="inline-flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"><CheckCircle className="w-3.5 h-3.5" /> Aprobar</button>
-                      <button onClick={() => setRechazoModal({ id: p.id, open: true })} className="inline-flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"><XCircle className="w-3.5 h-3.5" /> Rechazar</button>
+                      <button onClick={() => handleAprobar(p.id)} className="inline-flex items-center gap-1 px-3 py-1 bg-success-600 text-white rounded-lg text-sm hover:bg-success-700"><CheckCircle className="w-3.5 h-3.5" /> Aprobar</button>
+                      <button onClick={() => setRechazoModal({ id: p.id, open: true })} className="inline-flex items-center gap-1 px-3 py-1 bg-danger-600 text-white rounded-lg text-sm hover:bg-danger-700"><XCircle className="w-3.5 h-3.5" /> Rechazar</button>
                     </div>
                   </div>
                 ))}
@@ -149,7 +176,7 @@ export default function GestionPermisos() {
               required
             />
           </div>
-          <button onClick={handleRechazar} className="flex items-center justify-center gap-2 w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+          <button onClick={handleRechazar} className="flex items-center justify-center gap-2 w-full py-2 bg-danger-600 hover:bg-danger-700 text-white rounded-lg">
             <XCircle className="w-4 h-4" /> Rechazar Permiso
           </button>
         </div>

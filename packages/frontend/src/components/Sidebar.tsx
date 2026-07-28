@@ -34,16 +34,16 @@ export function Sidebar() {
   return (
     <>
       <button
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-blue-600 text-white rounded-lg"
+        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-primary-600 text-white rounded-lg shadow-lg"
         onClick={() => setMobileOpen(!mobileOpen)}
       >
         {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-blue-900 text-white transform transition-transform duration-200 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:inset-auto md:h-screen`}>
-        <div className="p-4 border-b border-blue-800">
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-primary-800 text-white transform transition-transform duration-200 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:inset-auto md:h-screen`}>
+        <div className="p-4 border-b border-primary-700">
           <h1 className="text-xl font-bold">PermisosBE</h1>
-          <p className="text-sm text-blue-300 mt-1">{user?.nombres} {user?.apellido_paterno}</p>
+          <p className="text-sm text-primary-200 mt-1">{user?.nombres} {user?.apellido_paterno}</p>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
@@ -53,7 +53,7 @@ export function Sidebar() {
               to={item.path}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-blue-700 text-white' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`
+                `flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-primary-600 text-white' : 'text-primary-100 hover:bg-primary-700 hover:text-white'}`
               }
             >
               {iconMap[item.label]}
@@ -62,8 +62,8 @@ export function Sidebar() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-blue-800">
-          <button onClick={logout} className="flex items-center gap-3 w-full px-4 py-2 text-sm text-blue-200 hover:text-white hover:bg-blue-800 rounded-lg transition-colors">
+        <div className="p-4 border-t border-primary-700">
+          <button onClick={logout} className="flex items-center gap-3 w-full px-4 py-2 text-sm text-primary-100 hover:text-white hover:bg-primary-700 rounded-lg transition-colors">
             <LogOut className="w-4 h-4" />
             Cerrar Sesión
           </button>

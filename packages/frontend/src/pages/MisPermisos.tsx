@@ -4,7 +4,7 @@ import { Permiso, Disponibilidad } from '../types';
 import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { FileText, FileSpreadsheet } from 'lucide-react';
+import { FileText, FileSpreadsheet, FileCheck } from 'lucide-react';
 import { formatDate } from '../utils/format';
 
 export default function MisPermisos() {
@@ -32,6 +32,20 @@ export default function MisPermisos() {
     }
   };
 
+  const handleDescargarCertificado = async (id: number) => {
+    try {
+      const res = await permisoApi.certificado(id);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `certificado_permiso_${id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al descargar certificado');
+    }
+  };
+
   const handleDownloadExcel = async () => {
     try {
       const res = await permisoApi.reporteExcel();
@@ -47,9 +61,9 @@ export default function MisPermisos() {
 
   const estadoBadge = (estado: string) => {
     const colors: Record<string, string> = {
-      en_revision: 'bg-yellow-100 text-yellow-800',
-      aprobado: 'bg-green-100 text-green-800',
-      rechazado: 'bg-red-100 text-red-800',
+      en_revision: 'bg-warning-100 text-warning-800',
+      aprobado: 'bg-success-100 text-success-800',
+      rechazado: 'bg-danger-100 text-danger-800',
     };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[estado] || 'bg-gray-100'}`}>
@@ -68,6 +82,14 @@ export default function MisPermisos() {
     { key: 'estado', label: 'Estado', render: (_: any, row: Permiso) => estadoBadge(row.estado) },
     { key: 'motivo', label: 'Motivo' },
     { key: 'motivo_rechazo', label: 'Motivo Rechazo', render: (v: string) => v || '-' },
+    {
+      key: 'certificado', label: 'Certificado', render: (_: any, row: Permiso) =>
+        row.estado === 'aprobado' ? (
+          <button onClick={() => handleDescargarCertificado(row.id)} className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-800">
+            <FileCheck className="w-3.5 h-3.5" /> Descargar
+          </button>
+        ) : null,
+    },
   ];
 
   return (
@@ -75,10 +97,10 @@ export default function MisPermisos() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Mis Permisos</h1>
         <div className="flex gap-2">
-          <button onClick={handleDownloadPDF} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+          <button onClick={handleDownloadPDF} className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
             <FileText className="w-4 h-4" /> PDF
           </button>
-          <button onClick={handleDownloadExcel} className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
+          <button onClick={handleDownloadExcel} className="inline-flex items-center gap-1.5 px-4 py-2 bg-success-600 text-white rounded-lg text-sm hover:bg-success-700 transition-colors">
             <FileSpreadsheet className="w-4 h-4" /> Excel
           </button>
         </div>
@@ -115,6 +137,11 @@ export default function MisPermisos() {
           <p className="text-sm text-gray-600"><strong>Jornada:</strong> {p.tipo_jornada === 'completa' ? 'Completa' : 'Media'}</p>
           <p className="text-sm text-gray-600"><strong>Motivo:</strong> {p.motivo}</p>
           {p.motivo_rechazo && <p className="text-sm text-red-600"><strong>Rechazo:</strong> {p.motivo_rechazo}</p>}
+          {p.estado === 'aprobado' && (
+            <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2">
+              <FileCheck className="w-3.5 h-3.5" /> Descargar Certificado
+            </button>
+          )}
         </MobileCard>
       ))}
     </div>

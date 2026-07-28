@@ -116,7 +116,7 @@ export default function SolicitarPermiso() {
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+          className="flex items-center justify-center gap-2 w-full py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
         >
           {loading ? 'Solicitando...' : <><Send className="w-4 h-4" /> Solicitar Permiso</>}
         </button>

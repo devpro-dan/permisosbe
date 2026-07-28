@@ -181,9 +181,9 @@ export default function Usuarios() {
           {!user.is_suspended ? (
             <button onClick={() => handleSuspend(user.id, true)} className="text-orange-600 hover:text-orange-800 text-sm">Suspender</button>
           ) : (
-            <button onClick={() => handleSuspend(user.id, false)} className="text-green-600 hover:text-green-800 text-sm">Reactivar</button>
+            <button onClick={() => handleSuspend(user.id, false)} className="text-green-600 hover:text-success-800 text-sm">Reactivar</button>
           )}
-          <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:text-red-800 text-sm">Eliminar</button>
+          <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:text-danger-800 text-sm">Eliminar</button>
         </div>
       ),
     },
@@ -193,7 +193,7 @@ export default function Usuarios() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Usuarios</h1>
-        <button onClick={openCreate} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+        <button onClick={openCreate} className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">
           <UserPlus className="w-4 h-4" /> Nuevo Usuario
         </button>
       </div>
@@ -281,7 +281,7 @@ export default function Usuarios() {
               <label htmlFor="can_change_password" className="text-xs font-medium text-gray-700 cursor-pointer">Puede cambiar su contraseña</label>
             </div>
           </div>
-          <button type="submit" className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">
+          <button type="submit" className="flex items-center justify-center gap-2 w-full py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm">
             <Save className="w-4 h-4" /> {editUser ? 'Actualizar' : 'Crear'} Usuario
           </button>
         </form>
@@ -319,7 +319,7 @@ export default function Usuarios() {
               <p className="text-green-700 font-medium">2FA está habilitado para este usuario.</p>
               <button
                 onClick={handleDisable2FA}
-                className="flex items-center justify-center gap-2 w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+                className="flex items-center justify-center gap-2 w-full py-2 bg-danger-600 hover:bg-danger-700 text-white rounded-lg"
               >
                 <ShieldOff className="w-4 h-4" /> Desactivar 2FA
               </button>
@@ -338,7 +338,7 @@ export default function Usuarios() {
               <button
                 onClick={handleSetup2FA}
                 disabled={saving2FA}
-                className="flex items-center justify-center gap-2 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50"
+                className="flex items-center justify-center gap-2 w-full py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg disabled:opacity-50"
               >
                 <Shield className="w-4 h-4" /> {saving2FA ? 'Configurando...' : 'Configurar 2FA'}
               </button>

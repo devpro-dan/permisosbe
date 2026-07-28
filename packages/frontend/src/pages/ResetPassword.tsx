@@ -46,7 +46,7 @@ export default function ResetPassword() {
         <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md text-center">
           <h1 className="text-xl font-bold text-gray-800 mb-4">Enlace Inválido</h1>
           <p className="text-gray-600 mb-4">El enlace de restablecimiento no es válido o ha expirado.</p>
-          <button onClick={() => navigate('/login')} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">
+          <button onClick={() => navigate('/login')} className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg">
             Volver al inicio de sesión
           </button>
         </div>
@@ -70,7 +70,7 @@ export default function ResetPassword() {
             </div>
             <button
               onClick={() => navigate('/login')}
-              className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
+              className="w-full py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg"
             >
               Ir al inicio de sesión
             </button>

@@ -30,7 +30,7 @@ export function Toast() {
 
   if (!data) return null;
 
-  const bg = data.type === 'success' ? 'bg-green-600' : 'bg-red-600';
+  const bg = data.type === 'success' ? 'bg-success-600' : 'bg-danger-600';
 
   return (
     <div className="fixed bottom-4 right-4 z-50 animate-slide-up">
