@@ -10,6 +10,7 @@ Sistema de administración de permisos administrativos para trabajadores de una 
 - **Autenticación**: JWT + 2FA (Google Authenticator)
 - **Reportes**: PDFKit + ExcelJS
 - **Correos**: Nodemailer (SMTP Gmail)
+- **Tiempo Real**: Socket.IO (notificaciones de sesiones)
 
 ## Estructura del Proyecto (Monorepo)
 
@@ -180,7 +181,13 @@ npm run dev -w @permisosbe/frontend
 
 ### Sesiones (admin)
 - `GET /api/sesiones` - Listar sesiones activas
-- `DELETE /api/sesiones/:id` - Eliminar sesión
+- `DELETE /api/sesiones` - Cerrar todas las sesiones
+- `DELETE /api/sesiones/:id` - Eliminar sesión específica
+
+**Notificaciones en Tiempo Real:**
+- Cuando un administrador cierra una sesión, el usuario recibe una notificación instantánea vía Socket.IO
+- La sesión se invalida inmediatamente y el usuario es redirigido al login
+- El middleware de autenticación valida la existencia de la sesión en cada petición
 
 ## Configuración de Correos SMTP
 

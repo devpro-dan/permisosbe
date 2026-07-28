@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authApi } from '../services/api';
 import { AuthUser } from '../types';
+import { connectSocket, disconnectSocket, onSessionClosed, offSessionClosed } from '../services/socket.service';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -21,7 +22,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (token) {
       authApi.getProfile()
-        .then((res) => setUser(res.data))
+        .then((res) => {
+          setUser(res.data);
+          connectSocket(token);
+        })
         .catch(() => {
           localStorage.removeItem('token');
           setToken(null);
@@ -29,6 +33,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      const handleSessionClosed = (data: any) => {
+        alert(data.message || 'Tu sesión ha sido cerrada');
+        logout();
+      };
+
+      onSessionClosed(handleSessionClosed);
+
+      return () => {
+        offSessionClosed(handleSessionClosed);
+      };
     }
   }, [token]);
 
@@ -40,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', res.data.token);
     setToken(res.data.token);
     setUser(res.data.user);
+    connectSocket(res.data.token);
     return { requires2FA: false };
   };
 
@@ -47,6 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
+    disconnectSocket();
+    window.location.href = '/login';
   };
 
   return (

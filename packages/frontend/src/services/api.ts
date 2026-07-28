@@ -19,8 +19,15 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const errorCode = error.response?.data?.code;
       const currentPath = window.location.pathname;
-      if (currentPath !== '/login') {
+      
+      if (errorCode === 'SESSION_CLOSED' || errorCode === 'SESSION_EXPIRED') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        alert(error.response?.data?.message || 'Tu sesión ha expirado');
+        window.location.href = '/login';
+      } else if (currentPath !== '/login') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/login';
