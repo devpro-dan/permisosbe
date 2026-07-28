@@ -12,12 +12,14 @@ import Usuarios from './pages/Usuarios';
 import Roles from './pages/Roles';
 import Configuracion from './pages/Configuracion';
 import Sesiones from './pages/Sesiones';
+import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
@@ -30,7 +32,7 @@ export default function App() {
             <Route path="/configuracion" element={<ProtectedRoute allowedRoles={[1]}><Configuracion /></ProtectedRoute>} />
             <Route path="/sesiones" element={<ProtectedRoute allowedRoles={[1]}><Sesiones /></ProtectedRoute>} />
           </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

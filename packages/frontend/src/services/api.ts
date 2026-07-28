@@ -15,22 +15,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+let isRedirecting = false;
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !isRedirecting) {
       const errorCode = error.response?.data?.code;
       const currentPath = window.location.pathname;
       
       if (errorCode === 'SESSION_CLOSED' || errorCode === 'SESSION_EXPIRED') {
+        isRedirecting = true;
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         alert(error.response?.data?.message || 'Tu sesión ha expirado');
         window.location.href = '/login';
-      } else if (currentPath !== '/login') {
+        setTimeout(() => { isRedirecting = false; }, 2000);
+      } else if (currentPath !== '/login' && currentPath !== '/reset-password') {
+        isRedirecting = true;
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/login';
+        setTimeout(() => { isRedirecting = false; }, 2000);
       }
     }
     return Promise.reject(error);

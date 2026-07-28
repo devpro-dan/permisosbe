@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { authApi } from '../services/api';
 import { AuthUser } from '../types';
 import { connectSocket, disconnectSocket, onSessionClosed, offSessionClosed } from '../services/socket.service';
@@ -18,6 +18,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+  const loggingOut = useRef(false);
 
   useEffect(() => {
     if (token) {
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (token) {
       const handleSessionClosed = (data: any) => {
+        if (loggingOut.current) return;
         alert(data.message || 'Tu sesión ha sido cerrada');
         logout();
       };
@@ -64,11 +66,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    if (loggingOut.current) return;
+    loggingOut.current = true;
+    
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setToken(null);
     setUser(null);
     disconnectSocket();
-    window.location.href = '/login';
+    
+    setTimeout(() => {
+      loggingOut.current = false;
+    }, 1000);
   };
 
   return (
