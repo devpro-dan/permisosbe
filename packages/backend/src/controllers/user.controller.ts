@@ -137,6 +137,29 @@ export const userController = {
     }
   },
 
+  async verify2FA(req: Request, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const { token } = req.body;
+
+      if (!token) {
+        res.status(400).json({ message: 'Código requerido' });
+        return;
+      }
+
+      const user = await userRepository.findById(id);
+      if (!user) {
+        res.status(404).json({ message: 'Usuario no encontrado' });
+        return;
+      }
+
+      const result = await authService.verify2FA(id, token);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Error al verificar 2FA' });
+    }
+  },
+
   async disable2FA(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);

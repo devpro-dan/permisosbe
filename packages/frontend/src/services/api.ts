@@ -69,6 +69,7 @@ export const userApi = {
   changePassword: (id: number, password: string) => api.post(`/usuarios/${id}/change-password`, { password }),
   get2FAStatus: (id: number) => api.get(`/usuarios/${id}/2fa`),
   setup2FA: (id: number) => api.post(`/usuarios/${id}/2fa/setup`),
+  verify2FA: (id: number, token: string) => api.post(`/usuarios/${id}/2fa/verify`, { token }),
   disable2FA: (id: number) => api.delete(`/usuarios/${id}/2fa`),
   delete: (id: number) => api.delete(`/usuarios/${id}`),
 };

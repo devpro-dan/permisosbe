@@ -6,7 +6,7 @@ import { MobileCard } from '../components/MobileCard';
 import { Modal } from '../components/Modal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { toast } from '../components/Toast';
-import { UserPlus, Save, Key, Shield, ShieldOff } from 'lucide-react';
+import { UserPlus, Save, Key, Shield, ShieldOff, ShieldCheck } from 'lucide-react';
 
 export default function Usuarios() {
   const [users, setUsers] = useState<User[]>([]);
@@ -28,6 +28,8 @@ export default function Usuarios() {
   const [twoFASecret, setTwoFASecret] = useState('');
   const [twoFAQr, setTwoFAQr] = useState('');
   const [saving2FA, setSaving2FA] = useState(false);
+  const [twoFAToken, setTwoFAToken] = useState('');
+  const [verifying2FA, setVerifying2FA] = useState(false);
 
   const load = async () => {
     try {
@@ -127,6 +129,7 @@ export default function Usuarios() {
     setTwoFAModal({ user, open: true, enabled: false });
     setTwoFASecret('');
     setTwoFAQr('');
+    setTwoFAToken('');
     try {
       const res = await userApi.get2FAStatus(user.id);
       setTwoFAModal({ user, open: true, enabled: res.data.enabled });
@@ -138,6 +141,7 @@ export default function Usuarios() {
   const handleSetup2FA = async () => {
     if (!twoFAModal.user) return;
     setSaving2FA(true);
+    setTwoFAToken('');
     try {
       const res = await userApi.setup2FA(twoFAModal.user.id);
       setTwoFASecret(res.data.secret);
@@ -147,6 +151,27 @@ export default function Usuarios() {
       toast({ message: err.response?.data?.message || 'Error al configurar 2FA', type: 'error' });
     } finally {
       setSaving2FA(false);
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    if (!twoFAModal.user) return;
+    if (!twoFAToken) {
+      toast({ message: 'Ingrese el código de 6 dígitos', type: 'error' });
+      return;
+    }
+    setVerifying2FA(true);
+    try {
+      await userApi.verify2FA(twoFAModal.user.id, twoFAToken);
+      toast({ message: '2FA verificado y activado correctamente', type: 'success' });
+      setTwoFAModal({ user: twoFAModal.user, open: true, enabled: true });
+      setTwoFASecret('');
+      setTwoFAQr('');
+      setTwoFAToken('');
+    } catch (err: any) {
+      toast({ message: err.response?.data?.message || 'Código 2FA inválido', type: 'error' });
+    } finally {
+      setVerifying2FA(false);
     }
   };
 
@@ -329,7 +354,25 @@ export default function Usuarios() {
               <p className="text-sm text-gray-600">Escanea este código con Google Authenticator:</p>
               <img src={twoFAQr} alt="QR Code" className="mx-auto w-48 h-48" />
               <p className="text-xs text-gray-500 break-all bg-gray-50 p-2 rounded">Secret: {twoFASecret}</p>
-              <p className="text-sm text-amber-600">El usuario deberá iniciar sesión y verificar el código 2FA para activarlo.</p>
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Verificar código</p>
+                <p className="text-xs text-gray-500 mb-3">Ingresa el código de 6 dígitos que muestra la aplicación para activar 2FA:</p>
+                <input
+                  type="text"
+                  value={twoFAToken}
+                  onChange={(e) => setTwoFAToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  className="w-full px-4 py-2 text-center text-lg tracking-widest border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={handleVerify2FA}
+                  disabled={verifying2FA || twoFAToken.length !== 6}
+                  className="mt-3 flex items-center justify-center gap-2 w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50"
+                >
+                  <ShieldCheck className="w-4 h-4" /> {verifying2FA ? 'Verificando...' : 'Verificar y Activar'}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="text-center space-y-4">

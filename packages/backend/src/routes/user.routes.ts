@@ -15,6 +15,7 @@ router.patch('/:id/suspend', authorize('usuarios', 'edit'), userController.suspe
 router.post('/:id/change-password', authorize('usuarios', 'edit'), userController.changePassword);
 router.get('/:id/2fa', authorize('usuarios', 'view'), userController.get2FAStatus);
 router.post('/:id/2fa/setup', authorize('usuarios', 'edit'), userController.setup2FA);
+router.post('/:id/2fa/verify', authorize('usuarios', 'edit'), userController.verify2FA);
 router.delete('/:id/2fa', authorize('usuarios', 'edit'), userController.disable2FA);
 router.delete('/:id', authorize('usuarios', 'delete'), userController.remove);
 
