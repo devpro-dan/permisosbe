@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { permisoApi } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '../components/Toast';
 import { Send } from 'lucide-react';
 
 function addDays(date: string, days: number): string {
@@ -34,6 +35,7 @@ export default function SolicitarPermiso() {
         tipo_jornada: cantidadDias > 1 ? 'completa' : tipoJornada,
         motivo,
       });
+      toast({ message: 'Permiso solicitado correctamente', type: 'success' });
       navigate('/mis-permisos');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error al solicitar permiso');

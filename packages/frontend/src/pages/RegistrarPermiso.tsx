@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { permisoApi, userApi } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '../components/Toast';
 import { Send, Search } from 'lucide-react';
 import { User } from '../types';
 
@@ -58,6 +59,7 @@ export default function RegistrarPermiso() {
         tipo_jornada: cantidadDias > 1 ? 'completa' : tipoJornada,
         motivo,
       });
+      toast({ message: 'Permiso registrado correctamente', type: 'success' });
       navigate('/gestion-permisos');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error al registrar permiso');

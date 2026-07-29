@@ -27,7 +27,7 @@ const navItems = [
   { label: 'Usuarios', path: '/usuarios', roles: [1] },
   { label: 'Roles', path: '/roles', roles: [1] },
   { label: 'Configuración', path: '/configuracion', roles: [1] },
-  { label: 'Auditoría', path: '/auditoria', roles: [1] },
+  { label: 'Auditoría', path: '/auditoria', roles: [1, 2] },
   { label: 'Sesiones', path: '/sesiones', roles: [1] },
 ];
 
@@ -39,6 +39,9 @@ export function Sidebar() {
     if (!user || !item.roles.includes(user.rolId)) return false;
     if (item.path === '/reportes') {
       return user.permissions?.some((permission) => permission.seccion === 'reportes' && permission.can_view) ?? false;
+    }
+    if (item.path === '/auditoria') {
+      return user.permissions?.some((permission) => permission.seccion === 'audit_log' && permission.can_view) ?? false;
     }
     return true;
   });

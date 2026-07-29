@@ -7,7 +7,7 @@ import { Modal } from '../components/Modal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Plus, Shield, Save } from 'lucide-react';
 
-const SECCIONES = ['usuarios', 'roles', 'permisos_administrativos', 'reportes', 'configuracion', 'sesiones'];
+const SECCIONES = ['usuarios', 'roles', 'permisos_administrativos', 'reportes', 'configuracion', 'sesiones', 'audit_log'];
 
 export default function Roles() {
   const [roles, setRoles] = useState<Role[]>([]);

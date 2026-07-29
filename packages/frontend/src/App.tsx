@@ -36,7 +36,7 @@ export default function App() {
             <Route path="/roles" element={<ProtectedRoute allowedRoles={[1]}><Roles /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute allowedRoles={[1]}><Configuracion /></ProtectedRoute>} />
             <Route path="/sesiones" element={<ProtectedRoute allowedRoles={[1]}><Sesiones /></ProtectedRoute>} />
-            <Route path="/auditoria" element={<ProtectedRoute allowedRoles={[1]}><AuditLog /></ProtectedRoute>} />
+            <Route path="/auditoria" element={<ProtectedRoute permission="audit_log"><AuditLog /></ProtectedRoute>} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
