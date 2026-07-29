@@ -342,6 +342,12 @@ export const permisoController = {
         }
 
         const comprobanteUrl = `comprobantes/${req.file.filename}`;
+        if (permiso.comprobante_url) {
+          const previousPath = path.resolve(UPLOADS_DIR, '..', permiso.comprobante_url);
+          if (fs.existsSync(previousPath)) {
+            fs.unlinkSync(previousPath);
+          }
+        }
         const updated = await permisoService.saveComprobante(id, comprobanteUrl);
 
         await auditLogService.register(req, 'update', 'permiso', id, `Subió comprobante de aprobación para permiso #${id}`);

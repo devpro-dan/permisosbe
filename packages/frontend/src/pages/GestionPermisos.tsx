@@ -203,9 +203,16 @@ export default function GestionPermisos() {
     {
       key: 'comprobante', label: 'Comprobante', render: (_: any, row: Permiso) =>
         row.estado === 'aprobado' && row.comprobante_url ? (
-          <button onClick={() => handleDescargarComprobante(row.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
-            <FileText className="w-3.5 h-3.5" /> Ver
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => handleDescargarComprobante(row.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
+              <FileText className="w-3.5 h-3.5" /> Ver
+            </button>
+            {puedeEditar && (
+              <button onClick={() => handleUploadClick(row.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
+                <Upload className="w-3.5 h-3.5" /> Cambiar
+              </button>
+            )}
+          </div>
         ) : row.estado === 'aprobado' && !row.comprobante_url && puedeEditar ? (
           <button onClick={() => handleUploadClick(row.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
             <Upload className="w-3.5 h-3.5" /> Cargar
@@ -311,9 +318,16 @@ export default function GestionPermisos() {
                 <FileText className="w-3.5 h-3.5" /> Certificado
               </button>
               {p.comprobante_url ? (
-                <button onClick={() => handleDescargarComprobante(p.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
-                  <FileText className="w-3.5 h-3.5" /> Comprobante
-                </button>
+                <>
+                  <button onClick={() => handleDescargarComprobante(p.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
+                    <FileText className="w-3.5 h-3.5" /> Comprobante
+                  </button>
+                  {puedeEditar && (
+                    <button onClick={() => handleUploadClick(p.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
+                      <Upload className="w-3.5 h-3.5" /> Cambiar
+                    </button>
+                  )}
+                </>
               ) : puedeEditar ? (
                 <button onClick={() => handleUploadClick(p.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
                   <Upload className="w-3.5 h-3.5" /> Cargar Comp.
