@@ -2,6 +2,8 @@
   "name": "permisosbe",
   "private": true,
   "scripts": {
+    "build": "npm run build -w @permisosbe/frontend && npm run build -w @permisosbe/backend",
+    "start": "npm run start -w @permisosbe/backend",
     "backend:build": "npm run build --prefix packages/backend",
     "backend:start": "npm run start --prefix packages/backend",
     "backend:migrate": "npm run migrate:prod --prefix packages/backend",
