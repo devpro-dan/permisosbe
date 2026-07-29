@@ -3,6 +3,11 @@ import { permisoService } from '../services/permiso.service';
 import { emailService } from '../services/email.service';
 import { auditLogService } from '../services/auditLog.service';
 
+function isWeekend(dateStr: string): boolean {
+  const day = new Date(dateStr).getDay();
+  return day === 0 || day === 6;
+}
+
 export const permisoController = {
   async misPermisos(req: Request, res: Response) {
     try {
@@ -27,6 +32,11 @@ export const permisoController = {
 
       if (!['completa', 'media'].includes(tipo_jornada)) {
         res.status(400).json({ message: 'Tipo jornada debe ser completa o media' });
+        return;
+      }
+
+      if (isWeekend(fecha_inicio)) {
+        res.status(400).json({ message: 'La fecha de inicio no puede ser fin de semana' });
         return;
       }
 
@@ -147,6 +157,11 @@ export const permisoController = {
 
       if (!['completa', 'media'].includes(tipo_jornada)) {
         res.status(400).json({ message: 'Tipo jornada debe ser completa o media' });
+        return;
+      }
+
+      if (isWeekend(fecha_inicio)) {
+        res.status(400).json({ message: 'La fecha de inicio no puede ser fin de semana' });
         return;
       }
 

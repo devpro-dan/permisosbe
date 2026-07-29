@@ -3,12 +3,7 @@ import { permisoApi } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../components/Toast';
 import { Send } from 'lucide-react';
-
-function addDays(date: string, days: number): string {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-}
+import { isWeekend, addBusinessDays } from '../utils/dates';
 
 export default function SolicitarPermiso() {
   const navigate = useNavigate();
@@ -21,11 +16,15 @@ export default function SolicitarPermiso() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const fechaFin = useMemo(() => addDays(fechaInicio, cantidadDias - 1), [fechaInicio, cantidadDias]);
+  const fechaFin = useMemo(() => addBusinessDays(fechaInicio, cantidadDias - 1), [fechaInicio, cantidadDias]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (isWeekend(fechaInicio)) {
+      setError('La fecha de inicio no puede ser fin de semana');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -51,13 +50,14 @@ export default function SolicitarPermiso() {
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
-          <input
-            type="date"
-            value={fechaInicio}
-            onChange={(e) => setFechaInicio(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            required
-          />
+            <input
+              type="date"
+              value={fechaInicio}
+              onChange={(e) => { setFechaInicio(e.target.value); setError(''); }}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${isWeekend(fechaInicio) ? 'border-red-500' : ''}`}
+              required
+            />
+            {isWeekend(fechaInicio) && <p className="text-red-500 text-xs mt-1">La fecha de inicio no puede ser fin de semana</p>}
         </div>
 
         <div>
