@@ -49,7 +49,7 @@ export const permisoController = {
       const user = await userRepository.findById(userId);
       if (user?.email) {
         const restantes = await permisoService.getAvailablePermisos(userId);
-        await emailService.sendPermisoNotification(user.email, 'solicitado', permiso, user.nombres, restantes.available);
+        await emailService.sendPermisoNotification(user.email, 'solicitado', permiso, user.nombres, { available: restantes.available, max: restantes.max });
       }
 
       res.status(201).json(permiso);
@@ -91,7 +91,7 @@ export const permisoController = {
       const user = await userRepository.findById(permiso.user_id);
       if (user?.email) {
         const restantes = await permisoService.getAvailablePermisos(permiso.user_id);
-        await emailService.sendPermisoNotification(user.email, 'aprobado', permiso, user.nombres, restantes.available);
+        await emailService.sendPermisoNotification(user.email, 'aprobado', permiso, user.nombres, { available: restantes.available, max: restantes.max });
       }
 
       res.json(permiso);
@@ -120,7 +120,7 @@ export const permisoController = {
       const user = await userRepository.findById(permiso.user_id);
       if (user?.email) {
         const restantes = await permisoService.getAvailablePermisos(permiso.user_id);
-        await emailService.sendPermisoNotification(user.email, 'rechazado', { ...permiso, motivo_rechazo }, user.nombres, restantes.available);
+        await emailService.sendPermisoNotification(user.email, 'rechazado', { ...permiso, motivo_rechazo }, user.nombres, { available: restantes.available, max: restantes.max });
       }
 
       res.json(permiso);
@@ -168,7 +168,7 @@ export const permisoController = {
 
       if (targetUser.email) {
         const restantes = await permisoService.getAvailablePermisos(user_id);
-        await emailService.sendPermisoNotification(targetUser.email, 'solicitado', permiso, targetUser.nombres, restantes.available);
+        await emailService.sendPermisoNotification(targetUser.email, 'solicitado', permiso, targetUser.nombres, { available: restantes.available, max: restantes.max });
       }
 
       res.status(201).json(permiso);

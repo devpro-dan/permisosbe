@@ -148,7 +148,7 @@ export const emailService = {
     });
   },
 
-  async sendPermisoNotification(email: string, tipo: string, data: any, userName?: string, available?: number) {
+  async sendPermisoNotification(email: string, tipo: string, data: any, userName?: string, disponibilidad?: { available: number; max: number }) {
     const transport = await getTransporter();
     if (!transport) {
       console.log('SMTP no configurado, correo no enviado');
@@ -159,62 +159,68 @@ export const emailService = {
     const from = smtpFrom?.valor || 'noreply@permisosbe.com';
 
     const saludo = userName ? `Hola <strong>${userName}</strong>,` : 'Hola,';
+    const dias = calcularDias(data.fecha_inicio, data.fecha_fin);
+    const diaLabel = `${dias} ${dias === 1 ? 'día' : 'días'}`;
+
+    let resumenHtml = '';
+    if (disponibilidad) {
+      resumenHtml = `
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;background:#f8fafc;border-radius:8px;">
+          <tr>
+            <td style="padding:12px;text-align:center;border-right:1px solid #e5e7eb;">
+              <div style="font-size:24px;font-weight:700;color:#2563eb;">${diaLabel}</div>
+              <div style="font-size:12px;color:#6b7280;margin-top:2px;">Solicitados</div>
+            </td>
+            <td style="padding:12px;text-align:center;border-right:1px solid #e5e7eb;">
+              <div style="font-size:24px;font-weight:700;color:#1e293b;">${disponibilidad.max}</div>
+              <div style="font-size:12px;color:#6b7280;margin-top:2px;">Permitidos por año</div>
+            </td>
+            <td style="padding:12px;text-align:center;">
+              <div style="font-size:24px;font-weight:700;color:${disponibilidad.available > 0 ? '#16a34a' : '#dc2626'};">${disponibilidad.available}</div>
+              <div style="font-size:12px;color:#6b7280;margin-top:2px;">Disponibles</div>
+            </td>
+          </tr>
+        </table>`;
+    }
+
     let subject = '';
     let title = '';
     let body = '';
 
     switch (tipo) {
       case 'solicitado': {
-        const dias = calcularDias(data.fecha_inicio, data.fecha_fin);
-        const extras: [string, string][] = [
-          ['Días Solicitados', `${dias} ${dias === 1 ? 'día' : 'días'}`],
-        ];
-        if (available !== undefined) {
-          extras.push(['Permisos Restantes', `${available} de ${available + 1} este año`]);
-        }
         subject = 'Permiso Administrativo Solicitado';
         title = 'Solicitud Recibida';
         body = `
           <p style="color:#374151;font-size:15px;line-height:1.6;">${saludo}</p>
-          <p style="color:#374151;font-size:15px;line-height:1.6;">Hemos recibido tu solicitud de permiso administrativo. A continuación, los detalles:</p>
-          ${detailTable(data, extras)}
+          <p style="color:#374151;font-size:15px;line-height:1.6;">Hemos recibido tu solicitud de permiso administrativo. A continuación, el resumen de tus días:</p>
+          ${resumenHtml}
+          ${detailTable(data)}
           <div style="text-align:center;margin:20px 0 10px;">${estadoBadge(data.estado)}</div>
           <p style="color:#6b7280;font-size:14px;line-height:1.5;text-align:center;">Su solicitud está pendiente de revisión por su jefatura. Recibirás un correo cuando sea aprobada o rechazada.</p>
         `;
         break;
       }
       case 'aprobado': {
-        const diasApr = calcularDias(data.fecha_inicio, data.fecha_fin);
-        const extrasApr: [string, string][] = [
-          ['Días Solicitados', `${diasApr} ${diasApr === 1 ? 'día' : 'días'}`],
-        ];
-        if (available !== undefined) {
-          extrasApr.push(['Permisos Restantes', `${available} de ${available + 1} este año`]);
-        }
         subject = 'Permiso Administrativo Aprobado';
         title = '¡Permiso Aprobado!';
         body = `
           <p style="color:#374151;font-size:15px;line-height:1.6;">${saludo}</p>
           <p style="color:#374151;font-size:15px;line-height:1.6;">Tu permiso administrativo ha sido <strong style="color:#16a34a;">aprobado</strong>.</p>
-          ${detailTable(data, extrasApr)}
+          ${resumenHtml}
+          ${detailTable(data)}
           <div style="text-align:center;margin:20px 0 10px;">${estadoBadge(data.estado)}</div>
         `;
         break;
       }
       case 'rechazado': {
-        const diasRech = calcularDias(data.fecha_inicio, data.fecha_fin);
-        const extrasRech: [string, string][] = [
-          ['Días Solicitados', `${diasRech} ${diasRech === 1 ? 'día' : 'días'}`],
-        ];
-        if (available !== undefined) {
-          extrasRech.push(['Permisos Restantes', `${available} de ${available + 1} este año`]);
-        }
         subject = 'Permiso Administrativo Rechazado';
         title = 'Permiso Rechazado';
         body = `
           <p style="color:#374151;font-size:15px;line-height:1.6;">${saludo}</p>
           <p style="color:#374151;font-size:15px;line-height:1.6;">Lamentamos informarte que tu permiso administrativo ha sido <strong style="color:#dc2626;">rechazado</strong>.</p>
-          ${detailTable(data, extrasRech)}
+          ${resumenHtml}
+          ${detailTable(data)}
           <div style="text-align:center;margin:20px 0 10px;">${estadoBadge(data.estado)}</div>
         `;
         break;

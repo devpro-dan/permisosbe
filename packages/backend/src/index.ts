@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -12,7 +13,10 @@ import { env } from './config/env';
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
 const allowedOrigins = env.URL_CLIENT.split(',').map((origin) => origin.trim()).filter(Boolean);
 
 app.use(cors({
@@ -33,8 +37,15 @@ app.use('/api/permisos', permisoRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/sesiones', sessionRoutes);
 
-app.use((_req, res) => {
+app.use('/api', (_req, res) => {
   res.status(404).json({ message: 'Ruta no encontrada' });
+});
+
+const frontendDist = path.resolve(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDist));
+
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
