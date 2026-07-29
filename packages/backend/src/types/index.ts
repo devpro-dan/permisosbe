@@ -45,6 +45,7 @@ export interface PermisoAdministrativo {
   estado: 'en_revision' | 'aprobado' | 'rechazado';
   motivo: string;
   motivo_rechazo?: string;
+  comprobante_url?: string;
   created_at: Date;
   updated_at: Date;
 }

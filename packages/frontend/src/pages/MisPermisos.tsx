@@ -42,6 +42,22 @@ export default function MisPermisos() {
     }
   };
 
+  const handleDescargarComprobante = async (id: number) => {
+    try {
+      const res = await permisoApi.descargarComprobante(id);
+      const ct = String(res.headers['content-type'] || '');
+      const ext = ct.includes('pdf') ? '.pdf' : ct.includes('png') ? '.png' : '.jpg';
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `comprobante_permiso_${id}${ext}`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al descargar comprobante');
+    }
+  };
+
   const handleDescargarCertificado = async (id: number) => {
     try {
       const res = await permisoApi.certificado(id);
@@ -112,6 +128,16 @@ export default function MisPermisos() {
           </button>
         ) : null,
     },
+    {
+      key: 'comprobante', label: 'Comprobante', render: (_: any, row: Permiso) =>
+        row.estado === 'aprobado' && row.comprobante_url ? (
+          <button onClick={() => handleDescargarComprobante(row.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
+            <FileText className="w-3.5 h-3.5" /> Ver
+          </button>
+        ) : row.estado === 'aprobado' && !row.comprobante_url ? (
+          <span className="text-xs text-gray-400">Sin comprobante</span>
+        ) : null,
+    },
   ];
 
   return (
@@ -163,9 +189,16 @@ export default function MisPermisos() {
           <p className="text-sm text-gray-600"><strong>Motivo:</strong> {p.motivo}</p>
           {p.motivo_rechazo && <p className="text-sm text-red-600"><strong>Rechazo:</strong> {p.motivo_rechazo}</p>}
           {p.estado === 'aprobado' && (
-            <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2">
-              <FileCheck className="w-3.5 h-3.5" /> Descargar Certificado
-            </button>
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+                <FileCheck className="w-3.5 h-3.5" /> Certificado
+              </button>
+              {p.comprobante_url && (
+                <button onClick={() => handleDescargarComprobante(p.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
+                  <FileText className="w-3.5 h-3.5" /> Comprobante
+                </button>
+              )}
+            </div>
           )}
         </MobileCard>
       ))}

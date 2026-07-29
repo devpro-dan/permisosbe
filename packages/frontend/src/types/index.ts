@@ -49,6 +49,7 @@ export interface Permiso {
   estado: 'en_revision' | 'aprobado' | 'rechazado';
   motivo: string;
   motivo_rechazo?: string;
+  comprobante_url?: string;
 }
 
 export interface Disponibilidad {

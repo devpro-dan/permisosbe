@@ -74,6 +74,14 @@ export const permisoService = {
     return result.rows[0];
   },
 
+  async saveComprobante(id: number, comprobanteUrl: string) {
+    const result = await pool.query(
+      'UPDATE permisos_administrativos SET comprobante_url = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [comprobanteUrl, id]
+    );
+    return result.rows[0] || null;
+  },
+
   async updateEstado(id: number, estado: string, motivoRechazo?: string) {
     const result = await pool.query(
       `UPDATE permisos_administrativos SET estado = $1, motivo_rechazo = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,

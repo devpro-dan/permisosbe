@@ -100,6 +100,14 @@ export const permisoApi = {
   reporteGeneralPDF: (params: Record<string, string | number>) => api.get('/permisos/reporte/general/pdf', { params, responseType: 'blob' }),
   reporteGeneralExcel: (params: Record<string, string | number>) => api.get('/permisos/reporte/general/excel', { params, responseType: 'blob' }),
   certificado: (id: number) => api.get(`/permisos/${id}/certificado`, { responseType: 'blob' }),
+  subirComprobante: (id: number, file: File) => {
+    const formData = new FormData();
+    formData.append('comprobante', file);
+    return api.post(`/permisos/${id}/comprobante`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  descargarComprobante: (id: number) => api.get(`/permisos/${id}/comprobante`, { responseType: 'blob' }),
 };
 
 export const configApi = {

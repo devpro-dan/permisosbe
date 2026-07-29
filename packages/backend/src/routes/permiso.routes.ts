@@ -23,5 +23,7 @@ router.delete('/:id', authorize('permisos_administrativos', 'delete'), permisoCo
 router.post('/:id/aprobar', authorize('permisos_administrativos', 'edit'), permisoController.aprobar);
 router.post('/:id/rechazar', authorize('permisos_administrativos', 'edit'), permisoController.rechazar);
 router.get('/:id/certificado', authenticate, permisoController.certificado);
+router.post('/:id/comprobante', authorize('permisos_administrativos', 'edit'), permisoController.subirComprobante);
+router.get('/:id/comprobante', authenticate, permisoController.descargarComprobante);
 
 export default router;

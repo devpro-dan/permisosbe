@@ -1,7 +1,37 @@
 import { Request, Response } from 'express';
+import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
 import { permisoService } from '../services/permiso.service';
 import { emailService } from '../services/email.service';
 import { auditLogService } from '../services/auditLog.service';
+
+const UPLOADS_DIR = path.resolve(__dirname, '..', '..', '..', '..', 'uploads', 'comprobantes');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.pdf';
+    cb(null, `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
+  },
+});
+
+export const uploadComprobanteMiddleware = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.pdf', '.png', '.jpg', '.jpeg', '.gif'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten archivos PDF, PNG, JPG, JPEG o GIF'));
+    }
+  },
+}).single('comprobante');
 
 function isWeekend(dateStr: string): boolean {
   const day = new Date(dateStr + 'T12:00:00').getDay();
@@ -282,6 +312,71 @@ export const permisoController = {
       res.send(pdfBuffer);
     } catch (error) {
       res.status(500).json({ message: 'Error al generar certificado' });
+    }
+  },
+
+  async subirComprobante(req: Request, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const permiso = await permisoService.findById(id);
+
+      if (!permiso) {
+        res.status(404).json({ message: 'Permiso no encontrado' });
+        return;
+      }
+
+      if (permiso.estado !== 'aprobado') {
+        res.status(400).json({ message: 'El permiso debe estar aprobado para subir un comprobante' });
+        return;
+      }
+
+      uploadComprobanteMiddleware(req, res, async (err) => {
+        if (err) {
+          res.status(400).json({ message: err.message || 'Error al subir archivo' });
+          return;
+        }
+
+        if (!req.file) {
+          res.status(400).json({ message: 'Debe seleccionar un archivo' });
+          return;
+        }
+
+        const comprobanteUrl = `comprobantes/${req.file.filename}`;
+        const updated = await permisoService.saveComprobante(id, comprobanteUrl);
+
+        await auditLogService.register(req, 'update', 'permiso', id, `Subió comprobante de aprobación para permiso #${id}`);
+
+        res.json(updated);
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Error al subir comprobante' });
+    }
+  },
+
+  async descargarComprobante(req: Request, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const permiso = await permisoService.findById(id);
+
+      if (!permiso) {
+        res.status(404).json({ message: 'Permiso no encontrado' });
+        return;
+      }
+
+      if (!permiso.comprobante_url) {
+        res.status(404).json({ message: 'No hay comprobante para este permiso' });
+        return;
+      }
+
+      const filePath = path.resolve(UPLOADS_DIR, '..', permiso.comprobante_url);
+      if (!fs.existsSync(filePath)) {
+        res.status(404).json({ message: 'Archivo no encontrado en el servidor' });
+        return;
+      }
+
+      res.sendFile(filePath);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al descargar comprobante' });
     }
   },
 

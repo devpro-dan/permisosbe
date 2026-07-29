@@ -23,6 +23,9 @@ export default function GestionPermisos() {
   const [loading, setLoading] = useState(true);
   const [rechazoModal, setRechazoModal] = useState<{ id: number; open: boolean }>({ id: 0, open: false });
   const [motivoRechazo, setMotivoRechazo] = useState('');
+  const [aprobarModal, setAprobarModal] = useState<{ id: number; open: boolean }>({ id: 0, open: false });
+  const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
+  const [subiendoComprobante, setSubiendoComprobante] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
@@ -64,12 +67,25 @@ export default function GestionPermisos() {
   }, [permisos, searchTerm, fechaInicio, fechaFin]);
 
   const handleAprobar = async (id: number) => {
-    if (!confirm('¿Aprobar este permiso?')) return;
+    setAprobarModal({ id, open: true });
+    setComprobanteFile(null);
+  };
+
+  const confirmarAprobacion = async () => {
+    const id = aprobarModal.id;
+    setSubiendoComprobante(true);
     try {
       await permisoApi.aprobar(id);
+      if (comprobanteFile) {
+        await permisoApi.subirComprobante(id, comprobanteFile);
+      }
+      setAprobarModal({ id: 0, open: false });
+      setComprobanteFile(null);
       load();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al aprobar');
+    } finally {
+      setSubiendoComprobante(false);
     }
   };
 
@@ -81,6 +97,22 @@ export default function GestionPermisos() {
       load();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al rechazar');
+    }
+  };
+
+  const handleDescargarComprobante = async (id: number) => {
+    try {
+      const res = await permisoApi.descargarComprobante(id);
+      const ct = String(res.headers['content-type'] || '');
+      const ext = ct.includes('pdf') ? '.pdf' : ct.includes('png') ? '.png' : '.jpg';
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `comprobante_permiso_${id}${ext}`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al descargar comprobante');
     }
   };
 
@@ -155,6 +187,16 @@ export default function GestionPermisos() {
           <button onClick={() => handleDescargarCertificado(row.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
             <FileText className="w-3.5 h-3.5" /> Descargar
           </button>
+        ) : null,
+    },
+    {
+      key: 'comprobante', label: 'Comprobante', render: (_: any, row: Permiso) =>
+        row.estado === 'aprobado' && row.comprobante_url ? (
+          <button onClick={() => handleDescargarComprobante(row.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
+            <FileText className="w-3.5 h-3.5" /> Ver
+          </button>
+        ) : row.estado === 'aprobado' && !row.comprobante_url ? (
+          <span className="text-xs text-gray-400">Sin comprobante</span>
         ) : null,
     },
   ];
@@ -251,9 +293,16 @@ export default function GestionPermisos() {
             </div>
           )}
           {p.estado === 'aprobado' && (
-            <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2">
-              <FileText className="w-3.5 h-3.5" /> Descargar Certificado
-            </button>
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+                <FileText className="w-3.5 h-3.5" /> Certificado
+              </button>
+              {p.comprobante_url && (
+                <button onClick={() => handleDescargarComprobante(p.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
+                  <FileText className="w-3.5 h-3.5" /> Comprobante
+                </button>
+              )}
+            </div>
           )}
         </MobileCard>
       ))}
@@ -283,6 +332,29 @@ export default function GestionPermisos() {
           )}
         </div>
       )}
+
+      <Modal isOpen={aprobarModal.open} onClose={() => setAprobarModal({ id: 0, open: false })} title="Aprobar Permiso">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">¿Estás seguro de aprobar este permiso?</p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Comprobante (PDF o imagen con firma)</label>
+            <input
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.gif"
+              onChange={(e) => setComprobanteFile(e.target.files?.[0] || null)}
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            <p className="text-xs text-gray-400 mt-1">Opcional. Máx. 10 MB.</p>
+          </div>
+          <button
+            onClick={confirmarAprobacion}
+            disabled={subiendoComprobante}
+            className="flex items-center justify-center gap-2 w-full py-2 bg-success-600 hover:bg-success-700 text-white rounded-lg disabled:opacity-50"
+          >
+            <CheckCircle className="w-4 h-4" /> {subiendoComprobante ? 'Aprobando...' : 'Confirmar Aprobación'}
+          </button>
+        </div>
+      </Modal>
 
       <Modal isOpen={rechazoModal.open} onClose={() => setRechazoModal({ id: 0, open: false })} title="Rechazar Permiso">
         <div className="space-y-4">
