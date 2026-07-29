@@ -41,12 +41,19 @@ export default function Roles() {
     }
   };
 
-  const togglePerm = (seccion: string, field: keyof RolePermission) => {
-    setPermissions((prev) =>
-      prev.map((p) =>
-        p.seccion === seccion ? { ...p, [field]: !p[field] } : p
-      )
-    );
+  type PermField = 'can_view' | 'can_create' | 'can_edit' | 'can_delete';
+  const togglePerm = (seccion: string, field: PermField) => {
+    setPermissions((prev) => {
+      const exists = prev.find((p) => p.seccion === seccion);
+      if (exists) {
+        return prev.map((p) =>
+          p.seccion === seccion ? { ...p, [field]: !p[field] } : p
+        );
+      }
+      const newPerm: RolePermission = { id: 0, rol_id: 0, seccion, can_view: false, can_create: false, can_edit: false, can_delete: false };
+      newPerm[field] = true;
+      return [...prev, newPerm];
+    });
   };
 
   const savePermissions = async () => {
@@ -179,7 +186,7 @@ export default function Roles() {
               <div key={seccion} className="border rounded-lg p-3">
                 <p className="font-medium text-sm capitalize mb-2">{seccion.replace(/_/g, ' ')}</p>
                 <div className="flex gap-4">
-                  {(['can_view', 'can_create', 'can_edit', 'can_delete'] as (keyof RolePermission)[]).map((field) => (
+                  {(['can_view', 'can_create', 'can_edit', 'can_delete'] as PermField[]).map((field) => (
                     <label key={field} className="flex items-center gap-1 text-xs">
                       <input
                         type="checkbox"
