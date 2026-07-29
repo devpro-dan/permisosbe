@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, FileSpreadsheet, FileText, X, Filter } from 'lucide-react';
-import { permisoApi } from '../services/api';
-import { Permiso } from '../types';
+import { permisoApi, userApi } from '../services/api';
+import { Permiso, User } from '../types';
 import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -50,6 +50,21 @@ export default function Reportes() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
+  const [usuarios, setUsuarios] = useState<User[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  useEffect(() => {
+    userApi.list().then((res) => setUsuarios(res.data)).catch(() => {});
+  }, []);
+
+  const filteredUsuarios = employee
+    ? usuarios.filter((u) => {
+        const fullName = `${u.nombres} ${u.apellido_paterno} ${u.apellido_materno || ''}`.toLowerCase();
+        const rutFull = `${u.rut}-${u.dv}`;
+        const term = employee.toLowerCase();
+        return fullName.includes(term) || rutFull.includes(term);
+      })
+    : [];
 
   const params = () => Object.fromEntries(
     Object.entries({ employee, startDate, endDate, year }).filter(([, v]) => v !== '')
@@ -124,17 +139,35 @@ export default function Reportes() {
 
       <div className="bg-white rounded-lg shadow p-5 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <Search className="inline w-4 h-4 mr-1" />Funcionario
             </label>
             <input
               value={employee}
-              onChange={(e) => setEmployee(e.target.value)}
+              onChange={(e) => { setEmployee(e.target.value); setShowDropdown(true); }}
+              onFocus={() => setShowDropdown(true)}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+              onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
               placeholder="Nombre o RUT"
               className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
-              onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
             />
+            {employee && showDropdown && filteredUsuarios.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {filteredUsuarios.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => { setEmployee(`${u.nombres} ${u.apellido_paterno}`); setShowDropdown(false); }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 transition-colors"
+                  >
+                    <span className="font-medium">{u.nombres} {u.apellido_paterno}</span>
+                    <span className="text-gray-500 ml-2">{u.rut}-{u.dv}</span>
+                    <span className="text-gray-400 ml-2 text-xs">{u.cargo}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
