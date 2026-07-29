@@ -4,7 +4,7 @@ import { emailService } from '../services/email.service';
 import { auditLogService } from '../services/auditLog.service';
 
 function isWeekend(dateStr: string): boolean {
-  const day = new Date(dateStr).getDay();
+  const day = new Date(dateStr + 'T12:00:00').getDay();
   return day === 0 || day === 6;
 }
 
