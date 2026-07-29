@@ -16,13 +16,17 @@ const app = express();
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false,
 }));
-const allowedOrigins = env.URL_CLIENT.split(',').map((origin) => origin.trim()).filter(Boolean);
 
+const allowedOrigins = env.URL_CLIENT.split(',').map((origin) => origin.trim()).filter(Boolean);
 app.use(cors({
-  origin: allowedOrigins,
+  origin: allowedOrigins.length > 0 ? allowedOrigins : true,
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
 app.use(morgan('dev'));
 app.use(express.json());
 
@@ -41,7 +45,7 @@ app.use('/api', (_req, res) => {
   res.status(404).json({ message: 'Ruta no encontrada' });
 });
 
-const frontendDist = path.resolve(__dirname, '../../frontend/dist');
+const frontendDist = path.resolve(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));
 
 app.get('*', (_req, res) => {
