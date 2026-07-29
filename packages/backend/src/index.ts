@@ -21,7 +21,7 @@ app.use(helmet({
 
 const allowedOrigins = env.URL_CLIENT.split(',').map((origin) => origin.trim()).filter(Boolean);
 app.use(cors({
-  origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
