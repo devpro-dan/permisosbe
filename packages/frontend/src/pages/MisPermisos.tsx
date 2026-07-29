@@ -130,11 +130,11 @@ export default function MisPermisos() {
     },
     {
       key: 'comprobante', label: 'Comprobante', render: (_: any, row: Permiso) =>
-        row.estado === 'aprobado' && row.comprobante_url ? (
+        row.estado === 'aprobado' && row.comprobante_disponible ? (
           <button onClick={() => handleDescargarComprobante(row.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
             <FileText className="w-3.5 h-3.5" /> Ver
           </button>
-        ) : row.estado === 'aprobado' && !row.comprobante_url ? (
+          ) : row.estado === 'aprobado' && !row.comprobante_disponible ? (
           <span className="text-xs text-gray-400">Sin comprobante</span>
         ) : null,
     },
@@ -193,7 +193,7 @@ export default function MisPermisos() {
               <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
                 <FileCheck className="w-3.5 h-3.5" /> Certificado
               </button>
-              {p.comprobante_url && (
+              {p.comprobante_disponible && (
                 <button onClick={() => handleDescargarComprobante(p.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
                   <FileText className="w-3.5 h-3.5" /> Comprobante
                 </button>

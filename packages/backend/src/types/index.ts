@@ -46,6 +46,7 @@ export interface PermisoAdministrativo {
   motivo: string;
   motivo_rechazo?: string;
   comprobante_url?: string;
+  comprobante_disponible?: boolean;
   created_at: Date;
   updated_at: Date;
 }

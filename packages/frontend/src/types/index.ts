@@ -50,6 +50,7 @@ export interface Permiso {
   motivo: string;
   motivo_rechazo?: string;
   comprobante_url?: string;
+  comprobante_disponible?: boolean;
 }
 
 export interface Disponibilidad {

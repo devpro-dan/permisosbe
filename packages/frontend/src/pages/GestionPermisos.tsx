@@ -202,7 +202,7 @@ export default function GestionPermisos() {
     },
     {
       key: 'comprobante', label: 'Comprobante', render: (_: any, row: Permiso) =>
-        row.estado === 'aprobado' && row.comprobante_url ? (
+        row.estado === 'aprobado' && row.comprobante_disponible ? (
           <div className="flex gap-2">
             <button onClick={() => handleDescargarComprobante(row.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
               <FileText className="w-3.5 h-3.5" /> Ver
@@ -217,6 +217,8 @@ export default function GestionPermisos() {
           <button onClick={() => handleUploadClick(row.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
             <Upload className="w-3.5 h-3.5" /> Cargar
           </button>
+        ) : row.estado === 'aprobado' && row.comprobante_url ? (
+          <span className="text-xs text-red-500">No disponible</span>
         ) : null,
     },
   ];
@@ -317,7 +319,7 @@ export default function GestionPermisos() {
               <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
                 <FileText className="w-3.5 h-3.5" /> Certificado
               </button>
-              {p.comprobante_url ? (
+              {p.comprobante_disponible ? (
                 <>
                   <button onClick={() => handleDescargarComprobante(p.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
                     <FileText className="w-3.5 h-3.5" /> Comprobante
@@ -328,10 +330,12 @@ export default function GestionPermisos() {
                     </button>
                   )}
                 </>
-              ) : puedeEditar ? (
+              ) : !p.comprobante_url && puedeEditar ? (
                 <button onClick={() => handleUploadClick(p.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
                   <Upload className="w-3.5 h-3.5" /> Cargar Comp.
                 </button>
+              ) : p.comprobante_url ? (
+                <span className="text-xs text-red-500">Comprobante no disponible</span>
               ) : null}
             </div>
           )}

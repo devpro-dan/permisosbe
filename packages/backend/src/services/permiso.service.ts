@@ -1,6 +1,17 @@
 import pool from '../config/database';
 import { systemConfigRepository } from '../repositories/systemConfig.repository';
 import { PermisoAdministrativo } from '../types';
+import fs from 'fs';
+import path from 'path';
+
+const COMPROBANTES_DIR = path.resolve(__dirname, '..', '..', '..', '..', 'uploads', 'comprobantes');
+
+function addComprobanteStatus<T extends { comprobante_url?: string | null }>(permiso: T) {
+  return {
+    ...permiso,
+    comprobante_disponible: Boolean(permiso.comprobante_url && fs.existsSync(path.resolve(COMPROBANTES_DIR, '..', permiso.comprobante_url))),
+  };
+}
 
 export const permisoService = {
   async getAvailablePermisos(userId: number) {
@@ -23,7 +34,7 @@ export const permisoService = {
       'SELECT * FROM permisos_administrativos WHERE user_id = $1 ORDER BY fecha_solicitud DESC',
       [userId]
     );
-    return result.rows;
+    return result.rows.map(addComprobanteStatus);
   },
 
   async findAll() {
@@ -33,7 +44,7 @@ export const permisoService = {
        JOIN users u ON u.id = p.user_id
        ORDER BY p.fecha_solicitud DESC`
     );
-    return result.rows;
+    return result.rows.map(addComprobanteStatus);
   },
 
   async findByUserId(userId: number) {
@@ -45,7 +56,7 @@ export const permisoService = {
        ORDER BY p.fecha_solicitud DESC`,
       [userId]
     );
-    return result.rows;
+    return result.rows.map(addComprobanteStatus);
   },
 
   async checkOverlap(userId: number, fechaInicio: string, fechaFin?: string): Promise<boolean> {
@@ -79,7 +90,7 @@ export const permisoService = {
       'UPDATE permisos_administrativos SET comprobante_url = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
       [comprobanteUrl, id]
     );
-    return result.rows[0] || null;
+    return result.rows[0] ? addComprobanteStatus(result.rows[0]) : null;
   },
 
   async updateEstado(id: number, estado: string, motivoRechazo?: string) {
