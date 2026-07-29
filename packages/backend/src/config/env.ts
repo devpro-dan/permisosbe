@@ -21,6 +21,7 @@ function parseDatabaseUrl(url: string) {
 const dbUrlParsed = process.env.DATABASE_URL ? parseDatabaseUrl(process.env.DATABASE_URL) : null;
 
 export const env = {
+  NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: parseInt(process.env.PORT || '3000', 10),
   DB_HOST: dbUrlParsed?.DB_HOST || process.env.DB_HOST || 'localhost',
   DB_PORT: dbUrlParsed?.DB_PORT || parseInt(process.env.DB_PORT || '5432', 10),

@@ -66,6 +66,18 @@ export interface User2FA {
   created_at: Date;
 }
 
+export interface AuditLog {
+  id: number;
+  user_id: number | null;
+  username: string;
+  accion: string;
+  entidad: string;
+  entidad_id: number | null;
+  detalle: string | null;
+  ip_address: string | null;
+  created_at: Date;
+}
+
 export interface SystemConfig {
   id: number;
   clave: string;

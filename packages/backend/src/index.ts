@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -9,7 +10,14 @@ import roleRoutes from './routes/role.routes';
 import permisoRoutes from './routes/permiso.routes';
 import configRoutes from './routes/config.routes';
 import sessionRoutes from './routes/session.routes';
+import auditLogRoutes from './routes/auditLog.routes';
 import { env } from './config/env';
+import { logger } from './utils/logger';
+
+const logsDir = path.resolve(__dirname, '..', '..', '..', 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 const app = express();
 
@@ -27,6 +35,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
+const logStream = fs.createWriteStream(path.join(logsDir, 'http.log'), { flags: 'a' });
+app.use(morgan('combined', { stream: logStream }));
 app.use(morgan('dev'));
 app.use(express.json());
 
@@ -40,6 +50,7 @@ app.use('/api/roles', roleRoutes);
 app.use('/api/permisos', permisoRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/sesiones', sessionRoutes);
+app.use('/api/audit-log', auditLogRoutes);
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ message: 'Ruta no encontrada' });
@@ -52,7 +63,8 @@ app.get('*', (_req, res) => {
   res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error('SERVER', err.message, { stack: err.stack, url: req.url, method: req.method });
   console.error('Error:', err);
   res.status(500).json({ message: 'Error interno del servidor' });
 });

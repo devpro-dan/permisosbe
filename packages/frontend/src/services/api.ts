@@ -108,6 +108,10 @@ export const configApi = {
   testEmail: (email: string) => api.post('/config/test-email', { email }),
 };
 
+export const auditLogApi = {
+  list: (params?: Record<string, string | number>) => api.get('/audit-log', { params }),
+};
+
 export const sessionApi = {
   list: () => api.get('/sesiones'),
   deleteAll: () => api.delete('/sesiones'),

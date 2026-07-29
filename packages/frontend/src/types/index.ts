@@ -64,6 +64,18 @@ export interface SystemConfig {
   descripcion?: string;
 }
 
+export interface AuditLog {
+  id: number;
+  user_id: number | null;
+  username: string;
+  accion: string;
+  entidad: string;
+  entidad_id: number | null;
+  detalle: string | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
 export interface Session {
   id: number;
   user_id: number;

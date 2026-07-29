@@ -5,6 +5,8 @@ import bcrypt from 'bcryptjs';
 import { authService } from '../services/auth.service';
 import { userRepository } from '../repositories/user.repository';
 import { emailService } from '../services/email.service';
+import { auditLogService } from '../services/auditLog.service';
+import { logger } from '../utils/logger';
 import { env } from '../config/env';
 
 export const authController = {
@@ -36,8 +38,17 @@ export const authController = {
         }
       }
 
+      await auditLogService.registerDirect({
+        user_id: result?.user?.id || null,
+        username: result?.user?.username || username,
+        accion: 'login',
+        entidad: 'auth',
+        detalle: `Inicio de sesión exitoso: ${username}`,
+        ip_address: typeof req.headers['x-forwarded-for'] === 'string' ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.ip,
+      });
       res.json(result);
     } catch (error: any) {
+      logger.warn('AUTH', `Intento de inicio de sesión fallido: ${req.body?.username}`, error.message);
       res.status(401).json({ message: error.message || 'Error de autenticación' });
     }
   },

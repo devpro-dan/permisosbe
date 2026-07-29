@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { systemConfigRepository } from '../repositories/systemConfig.repository';
 import { emailService } from '../services/email.service';
+import { auditLogService } from '../services/auditLog.service';
 
 const SENSITIVE_KEYS = ['smtp_pass'];
 
@@ -50,6 +51,8 @@ export const configController = {
       }
 
       const config = await systemConfigRepository.set(clave, valor, descripcion);
+      const masked = !SENSITIVE_KEYS.includes(clave) ? `${clave}=${valor}` : `${clave}=***`;
+      await auditLogService.register(req, 'update', 'config', undefined, `Actualizó configuración: ${masked}`);
       res.json(maskSensitive(config));
     } catch (error) {
       res.status(500).json({ message: 'Error al guardar configuración' });

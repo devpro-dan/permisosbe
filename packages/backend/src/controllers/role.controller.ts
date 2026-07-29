@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { roleRepository } from '../repositories/role.repository';
+import { auditLogService } from '../services/auditLog.service';
 
 export const roleController = {
   async list(_req: Request, res: Response) {
@@ -33,6 +34,7 @@ export const roleController = {
         return;
       }
       const role = await roleRepository.create(nombre, descripcion);
+      await auditLogService.register(req, 'create', 'rol', role.id, `Creó rol: ${nombre}`);
       res.status(201).json(role);
     } catch (error: any) {
       if (error.code === '23505') {
@@ -56,6 +58,7 @@ export const roleController = {
         res.status(404).json({ message: 'Rol no encontrado' });
         return;
       }
+      await auditLogService.register(req, 'update', 'rol', id, `Editó rol: ${nombre}`);
       res.json(role);
     } catch (error) {
       res.status(500).json({ message: 'Error al actualizar rol' });
@@ -70,6 +73,7 @@ export const roleController = {
         res.status(404).json({ message: 'Rol no encontrado' });
         return;
       }
+      await auditLogService.register(req, 'delete', 'rol', id, `Eliminó rol #${id}`);
       res.json({ message: 'Rol eliminado' });
     } catch (error) {
       res.status(500).json({ message: 'Error al eliminar rol' });
@@ -95,6 +99,7 @@ export const roleController = {
         return;
       }
       const perm = await roleRepository.setPermission(id, seccion, { can_view, can_create, can_edit, can_delete });
+      await auditLogService.register(req, 'set_permission', 'rol', id, `Configuró permisos de rol #${id} - sección: ${seccion}`);
       res.json(perm);
     } catch (error) {
       res.status(500).json({ message: 'Error al configurar permiso' });

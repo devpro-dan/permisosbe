@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useState } from 'react';
-import { LayoutDashboard, ClipboardList, FilePlus, ClipboardCheck, Users, Shield, Settings, History, FileBarChart, UserPlus, Menu, X, LogOut } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, FilePlus, ClipboardCheck, Users, Shield, Settings, History, FileBarChart, UserPlus, ScrollText, Menu, X, LogOut } from 'lucide-react';
 
 const iconMap: Record<string, React.ReactNode> = {
   Dashboard: <LayoutDashboard className="w-4 h-4" />,
@@ -14,6 +14,7 @@ const iconMap: Record<string, React.ReactNode> = {
   Configuración: <Settings className="w-4 h-4" />,
   Sesiones: <History className="w-4 h-4" />,
   Reportes: <FileBarChart className="w-4 h-4" />,
+  Auditoría: <ScrollText className="w-4 h-4" />,
 };
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { label: 'Usuarios', path: '/usuarios', roles: [1] },
   { label: 'Roles', path: '/roles', roles: [1] },
   { label: 'Configuración', path: '/configuracion', roles: [1] },
+  { label: 'Auditoría', path: '/auditoria', roles: [1] },
   { label: 'Sesiones', path: '/sesiones', roles: [1] },
 ];
 

@@ -3,7 +3,7 @@ import pool from '../config/database';
 
 const sections = [
   'usuarios', 'roles', 'permisos_administrativos',
-  'reportes', 'configuracion', 'sesiones',
+  'reportes', 'configuracion', 'sesiones', 'audit_log',
 ];
 
 const defaultConfigs = [

@@ -3,6 +3,7 @@ import { userRepository } from '../repositories/user.repository';
 import bcrypt from 'bcryptjs';
 import pool from '../config/database';
 import { authService } from '../services/auth.service';
+import { auditLogService } from '../services/auditLog.service';
 
 export const userController = {
   async list(_req: Request, res: Response) {
@@ -47,6 +48,7 @@ export const userController = {
       } as any);
 
       const { password_hash: _, ...result } = user;
+      await auditLogService.register(req, 'create', 'usuario', user.id, `Creó usuario: ${nombres} ${apellido_paterno} (${username})`);
       res.status(201).json(result);
     } catch (error: any) {
       if (error.code === '23505') {
@@ -73,6 +75,7 @@ export const userController = {
         return;
       }
       const { password_hash, ...rest } = user;
+      await auditLogService.register(req, 'update', 'usuario', id, `Editó usuario #${id}`);
       res.json(rest);
     } catch (error) {
       res.status(500).json({ message: 'Error al actualizar usuario' });
@@ -88,6 +91,7 @@ export const userController = {
         res.status(404).json({ message: 'Usuario no encontrado' });
         return;
       }
+      await auditLogService.register(req, suspended ? 'suspend' : 'activate', 'usuario', id, `${suspended ? 'Suspendió' : 'Activó'} usuario #${id}`);
       res.json({ message: suspended ? 'Usuario suspendido' : 'Usuario activado' });
     } catch (error) {
       res.status(500).json({ message: 'Error al suspender/activar usuario' });
@@ -164,6 +168,7 @@ export const userController = {
         res.status(404).json({ message: 'Usuario no encontrado' });
         return;
       }
+      await auditLogService.register(req, 'delete', 'usuario', id, `Eliminó usuario #${id}`);
       res.json({ message: 'Usuario eliminado' });
     } catch (error) {
       res.status(500).json({ message: 'Error al eliminar usuario' });

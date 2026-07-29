@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { permisoService } from '../services/permiso.service';
 import { emailService } from '../services/email.service';
+import { auditLogService } from '../services/auditLog.service';
 
 export const permisoController = {
   async misPermisos(req: Request, res: Response) {
@@ -52,6 +53,8 @@ export const permisoController = {
         await emailService.sendPermisoNotification(user.email, 'solicitado', permiso, user.nombres, { available: restantes.available, max: restantes.max });
       }
 
+      await auditLogService.register(req, 'create', 'permiso', permiso.id, `Solicitó permiso: ${motivo} (${fecha_inicio}${fecha_fin ? ` - ${fecha_fin}` : ''})`);
+
       res.status(201).json(permiso);
     } catch (error) {
       res.status(500).json({ message: 'Error al solicitar permiso' });
@@ -94,6 +97,8 @@ export const permisoController = {
         await emailService.sendPermisoNotification(user.email, 'aprobado', permiso, user.nombres, { available: restantes.available, max: restantes.max });
       }
 
+      await auditLogService.register(req, 'approve', 'permiso', id, `Aprobó permiso #${id}`);
+
       res.json(permiso);
     } catch (error) {
       res.status(500).json({ message: 'Error al aprobar permiso' });
@@ -122,6 +127,8 @@ export const permisoController = {
         const restantes = await permisoService.getAvailablePermisos(permiso.user_id);
         await emailService.sendPermisoNotification(user.email, 'rechazado', { ...permiso, motivo_rechazo }, user.nombres, { available: restantes.available, max: restantes.max });
       }
+
+      await auditLogService.register(req, 'reject', 'permiso', id, `Rechazó permiso #${id}: ${motivo_rechazo}`);
 
       res.json(permiso);
     } catch (error) {
@@ -171,6 +178,8 @@ export const permisoController = {
         await emailService.sendPermisoNotification(targetUser.email, 'solicitado', permiso, targetUser.nombres, { available: restantes.available, max: restantes.max });
       }
 
+      await auditLogService.register(req, 'create_for_user', 'permiso', permiso.id, `Registró permiso para usuario #${user_id}: ${motivo}`);
+
       res.status(201).json(permiso);
     } catch (error) {
       res.status(500).json({ message: 'Error al registrar permiso para usuario' });
@@ -199,6 +208,7 @@ export const permisoController = {
       }
 
       const updated = await permisoService.update(id, req.body);
+      await auditLogService.register(req, 'update', 'permiso', id, `Editó permiso #${id}`);
       res.json(updated);
     } catch (error) {
       res.status(500).json({ message: 'Error al editar permiso' });
@@ -226,7 +236,8 @@ export const permisoController = {
         }
       }
 
-      const deleted = await permisoService.delete(id);
+      await permisoService.delete(id);
+      await auditLogService.register(req, 'delete', 'permiso', id, `Eliminó permiso #${id}`);
       res.json({ message: 'Permiso eliminado' });
     } catch (error) {
       res.status(500).json({ message: 'Error al eliminar permiso' });
