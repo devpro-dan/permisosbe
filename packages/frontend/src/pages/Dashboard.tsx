@@ -22,9 +22,6 @@ export default function Dashboard() {
   const [loadingPendientes, setLoadingPendientes] = useState(true);
   const [rechazoModal, setRechazoModal] = useState<{ id: number; open: boolean }>({ id: 0, open: false });
   const [motivoRechazo, setMotivoRechazo] = useState('');
-  const [aprobarModal, setAprobarModal] = useState<{ id: number; open: boolean }>({ id: 0, open: false });
-  const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
-  const [subiendoComprobante, setSubiendoComprobante] = useState(false);
 
   const esAdmin = user?.rolId === 1 || user?.rolId === 2;
 
@@ -43,26 +40,12 @@ export default function Dashboard() {
   }, [user]);
 
   const handleAprobar = async (id: number) => {
-    setAprobarModal({ id, open: true });
-    setComprobanteFile(null);
-  };
-
-  const confirmarAprobacion = async () => {
-    const id = aprobarModal.id;
-    setSubiendoComprobante(true);
     try {
       await permisoApi.aprobar(id);
-      if (comprobanteFile) {
-        await permisoApi.subirComprobante(id, comprobanteFile);
-      }
       setPendientes((prev) => prev.filter((p) => p.id !== id));
-      setAprobarModal({ id: 0, open: false });
-      setComprobanteFile(null);
       toast({ message: 'Permiso aprobado correctamente', type: 'success' });
     } catch (err: any) {
       toast({ message: err.response?.data?.message || 'Error al aprobar', type: 'error' });
-    } finally {
-      setSubiendoComprobante(false);
     }
   };
 
@@ -203,29 +186,6 @@ export default function Dashboard() {
           )}
         </div>
       )}
-
-      <Modal isOpen={aprobarModal.open} onClose={() => setAprobarModal({ id: 0, open: false })} title="Aprobar Permiso">
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">¿Estás seguro de aprobar este permiso?</p>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Comprobante (PDF o imagen con firma)</label>
-            <input
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.gif"
-              onChange={(e) => setComprobanteFile(e.target.files?.[0] || null)}
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-            <p className="text-xs text-gray-400 mt-1">Opcional. Máx. 10 MB.</p>
-          </div>
-          <button
-            onClick={confirmarAprobacion}
-            disabled={subiendoComprobante}
-            className="flex items-center justify-center gap-2 w-full py-2 bg-success-600 hover:bg-success-700 text-white rounded-lg disabled:opacity-50"
-          >
-            <CheckCircle className="w-4 h-4" /> {subiendoComprobante ? 'Aprobando...' : 'Confirmar Aprobación'}
-          </button>
-        </div>
-      </Modal>
 
       <Modal isOpen={rechazoModal.open} onClose={() => setRechazoModal({ id: 0, open: false })} title="Rechazar Permiso">
         <div className="space-y-4">

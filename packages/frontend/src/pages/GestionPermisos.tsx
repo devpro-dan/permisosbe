@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { permisoApi } from '../services/api';
 import { Permiso } from '../types';
 import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Modal } from '../components/Modal';
-import { CheckCircle, XCircle, Trash2, FileText, Search, Calendar, X } from 'lucide-react';
+import { toast } from '../components/Toast';
+import { CheckCircle, XCircle, Trash2, FileText, Search, Calendar, X, Upload } from 'lucide-react';
 import { formatDate } from '../utils/format';
 
 const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, tipoJornada: string): number => {
@@ -19,16 +21,18 @@ const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, 
 };
 
 export default function GestionPermisos() {
+  const { user } = useAuth();
   const [permisos, setPermisos] = useState<Permiso[]>([]);
   const [loading, setLoading] = useState(true);
   const [rechazoModal, setRechazoModal] = useState<{ id: number; open: boolean }>({ id: 0, open: false });
   const [motivoRechazo, setMotivoRechazo] = useState('');
-  const [aprobarModal, setAprobarModal] = useState<{ id: number; open: boolean }>({ id: 0, open: false });
-  const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
-  const [subiendoComprobante, setSubiendoComprobante] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingId, setUploadingId] = useState<number | null>(null);
+
+  const puedeEditar = user?.rolId === 1 || user?.rolId === 2;
 
   const load = () => {
     setLoading(true);
@@ -67,25 +71,32 @@ export default function GestionPermisos() {
   }, [permisos, searchTerm, fechaInicio, fechaFin]);
 
   const handleAprobar = async (id: number) => {
-    setAprobarModal({ id, open: true });
-    setComprobanteFile(null);
-  };
-
-  const confirmarAprobacion = async () => {
-    const id = aprobarModal.id;
-    setSubiendoComprobante(true);
+    if (!confirm('¿Aprobar este permiso?')) return;
     try {
       await permisoApi.aprobar(id);
-      if (comprobanteFile) {
-        await permisoApi.subirComprobante(id, comprobanteFile);
-      }
-      setAprobarModal({ id: 0, open: false });
-      setComprobanteFile(null);
       load();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al aprobar');
+    }
+  };
+
+  const handleUploadClick = (id: number) => {
+    setUploadingId(id);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadingId) return;
+    try {
+      await permisoApi.subirComprobante(uploadingId, file);
+      toast({ message: 'Comprobante subido correctamente', type: 'success' });
+      load();
+    } catch (err: any) {
+      toast({ message: err.response?.data?.message || 'Error al subir comprobante', type: 'error' });
     } finally {
-      setSubiendoComprobante(false);
+      setUploadingId(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -195,8 +206,10 @@ export default function GestionPermisos() {
           <button onClick={() => handleDescargarComprobante(row.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
             <FileText className="w-3.5 h-3.5" /> Ver
           </button>
-        ) : row.estado === 'aprobado' && !row.comprobante_url ? (
-          <span className="text-xs text-gray-400">Sin comprobante</span>
+        ) : row.estado === 'aprobado' && !row.comprobante_url && puedeEditar ? (
+          <button onClick={() => handleUploadClick(row.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
+            <Upload className="w-3.5 h-3.5" /> Cargar
+          </button>
         ) : null,
     },
   ];
@@ -297,11 +310,15 @@ export default function GestionPermisos() {
               <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
                 <FileText className="w-3.5 h-3.5" /> Certificado
               </button>
-              {p.comprobante_url && (
+              {p.comprobante_url ? (
                 <button onClick={() => handleDescargarComprobante(p.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
                   <FileText className="w-3.5 h-3.5" /> Comprobante
                 </button>
-              )}
+              ) : puedeEditar ? (
+                <button onClick={() => handleUploadClick(p.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
+                  <Upload className="w-3.5 h-3.5" /> Cargar Comp.
+                </button>
+              ) : null}
             </div>
           )}
         </MobileCard>
@@ -333,28 +350,13 @@ export default function GestionPermisos() {
         </div>
       )}
 
-      <Modal isOpen={aprobarModal.open} onClose={() => setAprobarModal({ id: 0, open: false })} title="Aprobar Permiso">
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">¿Estás seguro de aprobar este permiso?</p>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Comprobante (PDF o imagen con firma)</label>
-            <input
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.gif"
-              onChange={(e) => setComprobanteFile(e.target.files?.[0] || null)}
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-            <p className="text-xs text-gray-400 mt-1">Opcional. Máx. 10 MB.</p>
-          </div>
-          <button
-            onClick={confirmarAprobacion}
-            disabled={subiendoComprobante}
-            className="flex items-center justify-center gap-2 w-full py-2 bg-success-600 hover:bg-success-700 text-white rounded-lg disabled:opacity-50"
-          >
-            <CheckCircle className="w-4 h-4" /> {subiendoComprobante ? 'Aprobando...' : 'Confirmar Aprobación'}
-          </button>
-        </div>
-      </Modal>
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept=".pdf,.png,.jpg,.jpeg,.gif"
+        onChange={handleFileSelected}
+        className="hidden"
+      />
 
       <Modal isOpen={rechazoModal.open} onClose={() => setRechazoModal({ id: 0, open: false })} title="Rechazar Permiso">
         <div className="space-y-4">
