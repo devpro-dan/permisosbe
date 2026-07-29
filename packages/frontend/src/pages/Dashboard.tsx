@@ -6,6 +6,7 @@ import { CalendarCheck, CalendarClock, CalendarDays, ClipboardList, ClipboardChe
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../components/Modal';
 import { formatDate } from '../utils/format';
+import { toast } from '../components/Toast';
 
 function calcularDias(inicio: string, fin: string | null | undefined, tipo: string): number {
   const d1 = new Date(inicio);
@@ -42,8 +43,9 @@ export default function Dashboard() {
     try {
       await permisoApi.aprobar(id);
       setPendientes((prev) => prev.filter((p) => p.id !== id));
+      toast({ message: 'Permiso aprobado correctamente', type: 'success' });
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al aprobar');
+      toast({ message: err.response?.data?.message || 'Error al aprobar', type: 'error' });
     }
   };
 
@@ -53,8 +55,9 @@ export default function Dashboard() {
       setPendientes((prev) => prev.filter((p) => p.id !== rechazoModal.id));
       setRechazoModal({ id: 0, open: false });
       setMotivoRechazo('');
+      toast({ message: 'Permiso rechazado correctamente', type: 'success' });
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al rechazar');
+      toast({ message: err.response?.data?.message || 'Error al rechazar', type: 'error' });
     }
   };
 
