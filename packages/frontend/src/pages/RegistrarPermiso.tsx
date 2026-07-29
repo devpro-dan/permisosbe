@@ -17,6 +17,7 @@ export default function RegistrarPermiso() {
 
   const [fechaInicio, setFechaInicio] = useState(today);
   const [cantidadDias, setCantidadDias] = useState(1);
+  const MAX_PERMISOS = 6;
   const [tipoJornada, setTipoJornada] = useState<'completa' | 'media'>('completa');
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState('');
@@ -46,6 +47,10 @@ export default function RegistrarPermiso() {
     setError('');
     if (isWeekend(fechaInicio)) {
       setError('La fecha de inicio no puede ser fin de semana');
+      return;
+    }
+    if (cantidadDias < 1 || cantidadDias > MAX_PERMISOS) {
+      setError(`La cantidad de días debe estar entre 1 y ${MAX_PERMISOS}`);
       return;
     }
     setLoading(true);
@@ -135,12 +140,13 @@ export default function RegistrarPermiso() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad de Días</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad de Días (máx. {MAX_PERMISOS})</label>
           <input
             type="number"
             min={1}
+            max={MAX_PERMISOS}
             value={cantidadDias}
-            onChange={(e) => setCantidadDias(Math.max(1, parseInt(e.target.value) || 1))}
+            onChange={(e) => setCantidadDias(Math.min(MAX_PERMISOS, Math.max(1, parseInt(e.target.value) || 1)))}
             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             required
           />
