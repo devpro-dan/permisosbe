@@ -7,6 +7,7 @@ import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import MisPermisos from './pages/MisPermisos';
 import SolicitarPermiso from './pages/SolicitarPermiso';
+import RegistrarPermiso from './pages/RegistrarPermiso';
 import GestionPermisos from './pages/GestionPermisos';
 import Usuarios from './pages/Usuarios';
 import Roles from './pages/Roles';
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/mis-permisos" element={<ProtectedRoute allowedRoles={[3]}><MisPermisos /></ProtectedRoute>} />
             <Route path="/solicitar-permiso" element={<ProtectedRoute allowedRoles={[3]}><SolicitarPermiso /></ProtectedRoute>} />
+            <Route path="/registrar-permiso" element={<ProtectedRoute allowedRoles={[1, 2]}><RegistrarPermiso /></ProtectedRoute>} />
             <Route path="/gestion-permisos" element={<ProtectedRoute allowedRoles={[1, 2]}><GestionPermisos /></ProtectedRoute>} />
             <Route path="/reportes" element={<ProtectedRoute permission="reportes"><Reportes /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute allowedRoles={[1]}><Usuarios /></ProtectedRoute>} />

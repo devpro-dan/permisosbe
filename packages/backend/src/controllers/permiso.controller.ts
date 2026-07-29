@@ -129,6 +129,54 @@ export const permisoController = {
     }
   },
 
+  async solicitarParaUsuario(req: Request, res: Response) {
+    try {
+      const { user_id, fecha_inicio, fecha_fin, tipo_jornada, motivo } = req.body;
+
+      if (!user_id || !fecha_inicio || !tipo_jornada || !motivo) {
+        res.status(400).json({ message: 'Usuario, fecha inicio, tipo jornada y motivo son requeridos' });
+        return;
+      }
+
+      if (!['completa', 'media'].includes(tipo_jornada)) {
+        res.status(400).json({ message: 'Tipo jornada debe ser completa o media' });
+        return;
+      }
+
+      const { userRepository } = require('../repositories/user.repository');
+      const targetUser = await userRepository.findById(user_id);
+      if (!targetUser) {
+        res.status(404).json({ message: 'Usuario no encontrado' });
+        return;
+      }
+
+      const disponibilidad = await permisoService.getAvailablePermisos(user_id);
+      if (disponibilidad.available <= 0) {
+        res.status(400).json({ message: 'El usuario no tiene permisos disponibles para este año' });
+        return;
+      }
+
+      const overlap = await permisoService.checkOverlap(user_id, fecha_inicio, fecha_fin);
+      if (overlap) {
+        res.status(400).json({ message: 'El usuario ya tiene un permiso registrado para esa fecha' });
+        return;
+      }
+
+      const permiso = await permisoService.create({
+        user_id, fecha_inicio, fecha_fin, tipo_jornada, motivo,
+      });
+
+      if (targetUser.email) {
+        const restantes = await permisoService.getAvailablePermisos(user_id);
+        await emailService.sendPermisoNotification(targetUser.email, 'solicitado', permiso, targetUser.nombres, restantes.available);
+      }
+
+      res.status(201).json(permiso);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al registrar permiso para usuario' });
+    }
+  },
+
   async update(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);
@@ -292,6 +340,21 @@ export const permisoController = {
       res.send(excelBuffer);
     } catch (error) {
       res.status(500).json({ message: 'Error al generar reporte general Excel' });
+    }
+  },
+
+  async reporteConsulta(req: Request, res: Response) {
+    try {
+      const filters = {
+        employee: (req.query.employee as string) || undefined,
+        startDate: (req.query.startDate as string) || undefined,
+        endDate: (req.query.endDate as string) || undefined,
+        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
+      };
+      const permisos = await permisoService.findForReport(filters);
+      res.json(permisos);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al obtener datos del reporte' });
     }
   },
 };

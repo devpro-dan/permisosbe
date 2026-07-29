@@ -1,6 +1,11 @@
-import { useState } from 'react';
-import { FileSpreadsheet, FileText, Search, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Search, Calendar, FileSpreadsheet, FileText, X, Filter } from 'lucide-react';
 import { permisoApi } from '../services/api';
+import { Permiso } from '../types';
+import { DataTable } from '../components/DataTable';
+import { MobileCard } from '../components/MobileCard';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { formatDate } from '../utils/format';
 import { toast } from '../components/Toast';
 
 function downloadBlob(data: BlobPart, filename: string, type: string) {
@@ -12,19 +17,60 @@ function downloadBlob(data: BlobPart, filename: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
+const currentYear = new Date().getFullYear();
+const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
+
+const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, tipoJornada: string): number => {
+  const inicio = new Date(fechaInicio);
+  const fin = fechaFin ? new Date(fechaFin) : new Date(fechaInicio);
+  const diffTime = Math.abs(fin.getTime() - inicio.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  return tipoJornada === 'media' ? diffDays * 0.5 : diffDays;
+};
+
+const estadoBadge = (estado: string) => {
+  const colors: Record<string, string> = {
+    en_revision: 'bg-warning-100 text-warning-800',
+    aprobado: 'bg-success-100 text-success-800',
+    rechazado: 'bg-danger-100 text-danger-800',
+  };
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[estado] || 'bg-gray-100'}`}>
+      {estado === 'en_revision' ? 'En Revisión' : estado === 'aprobado' ? 'Aprobado' : 'Rechazado'}
+    </span>
+  );
+};
+
 export default function Reportes() {
   const [employee, setEmployee] = useState('');
+  const [year, setYear] = useState(String(currentYear));
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [year, setYear] = useState('');
-  const [loading, setLoading] = useState<'pdf' | 'excel' | null>(null);
+  const [data, setData] = useState<Permiso[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
 
   const params = () => Object.fromEntries(
-    Object.entries({ employee, startDate, endDate, year }).filter(([, value]) => value !== '')
+    Object.entries({ employee, startDate, endDate, year }).filter(([, v]) => v !== '')
   ) as Record<string, string>;
 
-  const generate = async (format: 'pdf' | 'excel') => {
-    setLoading(format);
+  const handleBuscar = async () => {
+    setLoading(true);
+    setSearched(true);
+    try {
+      const res = await permisoApi.reporteConsulta(params());
+      setData(res.data);
+    } catch (err: any) {
+      toast({ message: err.response?.data?.message || 'Error al consultar reportes', type: 'error' });
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    setExporting(format);
     try {
       const response = format === 'pdf'
         ? await permisoApi.reporteGeneralPDF(params())
@@ -34,58 +80,171 @@ export default function Reportes() {
         `reporte_general_permisos.${format === 'pdf' ? 'pdf' : 'xlsx'}`,
         format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       );
-      toast({ message: 'Reporte generado correctamente', type: 'success' });
-    } catch (error: any) {
-      toast({ message: error.response?.data?.message || 'Error al generar reporte', type: 'error' });
+      toast({ message: 'Reporte exportado correctamente', type: 'success' });
+    } catch (err: any) {
+      toast({ message: err.response?.data?.message || 'Error al exportar reporte', type: 'error' });
     } finally {
-      setLoading(null);
+      setExporting(null);
     }
   };
 
   const clear = () => {
     setEmployee('');
+    setYear(String(currentYear));
     setStartDate('');
     setEndDate('');
-    setYear('');
+    setData([]);
+    setSearched(false);
   };
+
+  const columns = [
+    { key: 'nombres', label: 'Funcionario', render: (_: any, row: Permiso) => `${row.nombres} ${row.apellido_paterno}` },
+    { key: 'rut', label: 'RUT', render: (_: any, row: Permiso) => `${row.rut}-${row.dv}` },
+    { key: 'fecha_inicio', label: 'Fecha Inicio', render: (v: string) => formatDate(v) },
+    { key: 'fecha_fin', label: 'Fecha Fin', render: (v: string | null) => v ? formatDate(v) : '-' },
+    {
+      key: 'dias',
+      label: 'Días',
+      render: (_: any, row: Permiso) => {
+        const dias = calcularDias(row.fecha_inicio, row.fecha_fin, row.tipo_jornada);
+        return <span className="font-semibold text-primary-700">{dias} {dias === 1 ? 'día' : 'días'}</span>;
+      }
+    },
+    { key: 'tipo_jornada', label: 'Jornada', render: (v: string) => v === 'completa' ? 'Completa' : 'Media' },
+    { key: 'estado', label: 'Estado', render: (_: any, row: Permiso) => estadoBadge(row.estado) },
+    { key: 'motivo', label: 'Motivo' },
+  ];
+
+  const hasFilters = employee || startDate || endDate || year;
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-2">Reportes</h1>
-      <p className="text-gray-500 mb-6">Genera reportes de permisos de todos los funcionarios usando filtros opcionales.</p>
+      <p className="text-gray-500 mb-6">Consulta y exporta permisos de todos los funcionarios aplicando filtros.</p>
 
-      <div className="bg-white rounded-lg shadow p-5 max-w-4xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-white rounded-lg shadow p-5 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1"><Search className="inline w-4 h-4 mr-1" />Funcionario</label>
-            <input value={employee} onChange={(e) => setEmployee(e.target.value)} placeholder="Nombre o RUT" className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Search className="inline w-4 h-4 mr-1" />Funcionario
+            </label>
+            <input
+              value={employee}
+              onChange={(e) => setEmployee(e.target.value)}
+              placeholder="Nombre o RUT"
+              className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+              onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
-            <input type="number" min="2000" max="2100" value={year} onChange={(e) => setYear(e.target.value)} placeholder="Todos los años" className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Calendar className="inline w-4 h-4 mr-1" />Año
+            </label>
+            <select
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+            >
+              <option value="">Todos</option>
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Calendar className="inline w-4 h-4 mr-1" />Desde
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Calendar className="inline w-4 h-4 mr-1" />Hasta
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+            />
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 mt-6">
-          <button onClick={() => generate('pdf')} disabled={loading !== null} className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg disabled:opacity-50">
-            <FileText className="w-4 h-4" /> {loading === 'pdf' ? 'Generando...' : 'Generar PDF'}
+        <div className="flex flex-wrap gap-3 mt-5">
+          <button
+            onClick={handleBuscar}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Filter className="w-4 h-4" /> {loading ? 'Buscando...' : 'Buscar'}
           </button>
-          <button onClick={() => generate('excel')} disabled={loading !== null} className="inline-flex items-center gap-2 px-4 py-2 bg-success-600 hover:bg-success-700 text-white rounded-lg disabled:opacity-50">
-            <FileSpreadsheet className="w-4 h-4" /> {loading === 'excel' ? 'Generando...' : 'Generar Excel'}
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting !== null || data.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-danger-600 hover:bg-danger-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+          >
+            <FileText className="w-4 h-4" /> {exporting === 'pdf' ? 'Exportando...' : 'Exportar PDF'}
           </button>
-          <button onClick={clear} disabled={loading !== null} className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg disabled:opacity-50">
-            <X className="w-4 h-4" /> Limpiar filtros
+          <button
+            onClick={() => handleExport('excel')}
+            disabled={exporting !== null || data.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-success-600 hover:bg-success-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+          >
+            <FileSpreadsheet className="w-4 h-4" /> {exporting === 'excel' ? 'Exportando...' : 'Exportar Excel'}
+          </button>
+          <button
+            onClick={clear}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <X className="w-4 h-4" /> Limpiar
           </button>
         </div>
       </div>
+
+      {searched && (
+        <div className="flex items-center justify-between bg-primary-50 border border-primary-200 rounded-lg p-3 mb-4">
+          <p className="text-sm text-primary-800">
+            {loading ? 'Buscando...' : (
+              <>Se encontraron <span className="font-semibold">{data.length}</span> registro{data.length !== 1 ? 's' : ''}</>
+            )}
+          </p>
+        </div>
+      )}
+
+      {loading ? (
+        <LoadingSpinner message="Cargando datos..." />
+      ) : searched ? (
+        <>
+          <DataTable columns={columns} data={data} />
+          {data.map((p) => (
+            <MobileCard key={p.id}>
+              <p className="font-medium">{p.nombres} {p.apellido_paterno}</p>
+              <p className="text-sm text-gray-500">{p.rut}-{p.dv}</p>
+              <p className="text-sm">{formatDate(p.fecha_inicio)}{p.fecha_fin ? ` - ${formatDate(p.fecha_fin)}` : ''}</p>
+              <p className="text-sm font-semibold text-primary-700">
+                {calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días
+              </p>
+              <div className="flex items-center gap-2">
+                {estadoBadge(p.estado)}
+                <span className="text-xs text-gray-500">{p.tipo_jornada === 'completa' ? 'Completa' : 'Media'}</span>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">{p.motivo}</p>
+            </MobileCard>
+          ))}
+        </>
+      ) : (
+        <div className="text-center py-16 text-gray-400 bg-white rounded-lg shadow">
+          <Filter className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p className="text-lg font-medium">Aplica filtros y presiona Buscar</p>
+          <p className="text-sm mt-1">Puedes filtrar por funcionario, año o rango de fechas.</p>
+        </div>
+      )}
     </div>
   );
 }

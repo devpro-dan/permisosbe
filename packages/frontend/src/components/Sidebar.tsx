@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useState } from 'react';
-import { LayoutDashboard, ClipboardList, FilePlus, ClipboardCheck, Users, Shield, Settings, History, FileBarChart, Menu, X, LogOut } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, FilePlus, ClipboardCheck, Users, Shield, Settings, History, FileBarChart, UserPlus, Menu, X, LogOut } from 'lucide-react';
 
 const iconMap: Record<string, React.ReactNode> = {
   Dashboard: <LayoutDashboard className="w-4 h-4" />,
   'Mis Permisos': <ClipboardList className="w-4 h-4" />,
   'Solicitar Permiso': <FilePlus className="w-4 h-4" />,
+  'Registrar Permiso': <UserPlus className="w-4 h-4" />,
   'Gestionar Permisos': <ClipboardCheck className="w-4 h-4" />,
   Usuarios: <Users className="w-4 h-4" />,
   Roles: <Shield className="w-4 h-4" />,
@@ -19,6 +20,7 @@ const navItems = [
   { label: 'Dashboard', path: '/dashboard', roles: [1, 2, 3] },
   { label: 'Mis Permisos', path: '/mis-permisos', roles: [3] },
   { label: 'Solicitar Permiso', path: '/solicitar-permiso', roles: [3] },
+  { label: 'Registrar Permiso', path: '/registrar-permiso', roles: [1, 2] },
   { label: 'Gestionar Permisos', path: '/gestion-permisos', roles: [1, 2] },
   { label: 'Reportes', path: '/reportes', roles: [1, 2] },
   { label: 'Usuarios', path: '/usuarios', roles: [1] },

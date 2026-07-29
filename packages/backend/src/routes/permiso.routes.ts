@@ -9,8 +9,10 @@ router.use(authenticate);
 
 router.get('/mis-permisos', permisoController.misPermisos);
 router.post('/solicitar', permisoController.solicitar);
+router.post('/registrar-para-usuario', authorize('permisos_administrativos', 'create'), permisoController.solicitarParaUsuario);
 router.get('/reporte/pdf', permisoController.reportePDF);
 router.get('/reporte/excel', permisoController.reporteExcel);
+router.get('/reporte/consulta', authorize('reportes', 'view'), permisoController.reporteConsulta);
 router.get('/reporte/general/pdf', authorize('reportes', 'view'), permisoController.reporteGeneralPDF);
 router.get('/reporte/general/excel', authorize('reportes', 'view'), permisoController.reporteGeneralExcel);
 

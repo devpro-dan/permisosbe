@@ -67,12 +67,34 @@ async function createTransporter() {
     return null;
   }
 
-  return nodemailer.createTransport({
-    host: smtpHost.valor,
+  const host = smtpHost.valor.trim();
+  if (!host) return null;
+
+  const transport = nodemailer.createTransport({
+    host,
     port: parseInt(smtpPort.valor, 10),
     secure: parseInt(smtpPort.valor, 10) === 465,
-    auth: { user: smtpUser.valor, pass: smtpPass.valor },
+    auth: { user: smtpUser.valor.trim(), pass: smtpPass.valor },
+    tls: { rejectUnauthorized: false },
   });
+
+  try {
+    await transport.verify();
+  } catch (err: any) {
+    const msg = err.message || '';
+    if (msg.includes('queryA') || msg.includes('ENOTFOUND') || msg.includes('ESOCKET')) {
+      throw new Error(
+        `No se pudo conectar al servidor SMTP (${host}:${smtpPort.valor}). ` +
+        'Verifica que el host y puerto sean correctos y que el servidor sea accesible.'
+      );
+    }
+    if (msg.includes('auth') || msg.includes('login') || msg.includes('535')) {
+      throw new Error('Error de autenticación SMTP. Verifica el usuario y contraseña.');
+    }
+    throw new Error(`Error de conexión SMTP: ${msg}`);
+  }
+
+  return transport;
 }
 
 async function getTransporter() {
@@ -207,7 +229,8 @@ export const emailService = {
         html: getEmailTemplate(title, body),
       });
     } catch (err) {
-      console.error('Error enviando correo:', err);
+      console.error('Error enviando correo de notificación:', err);
+      transporter = null;
     }
   },
 
