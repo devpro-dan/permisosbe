@@ -55,13 +55,13 @@ export function Sidebar() {
         {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-primary-800 text-white transform transition-transform duration-200 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:inset-auto md:h-screen`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-primary-800 text-white flex flex-col transform transition-transform duration-200 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:sticky md:top-0 md:h-screen`}>
         <div className="p-4 border-b border-primary-700">
           <h1 className="text-xl font-bold">PermisosBE</h1>
           <p className="text-sm text-primary-200 mt-1">{user?.nombres} {user?.apellido_paterno}</p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {filtered.map((item) => (
             <NavLink
               key={item.path}
