@@ -224,6 +224,44 @@ export const permisoService = {
     };
   },
 
+  async getPermisosDelMes(month: string) {
+    const [year, mes] = month.split('-');
+    const start = `${year}-${mes}-01`;
+    const lastDay = new Date(parseInt(year, 10), parseInt(mes, 10), 0).getDate();
+    const end = `${year}-${mes}-${String(lastDay).padStart(2, '0')}`;
+
+    const result = await pool.query(
+      `SELECT p.*, u.nombres, u.apellido_paterno, u.apellido_materno
+       FROM permisos_administrativos p
+       JOIN users u ON u.id = p.user_id
+       WHERE p.estado = 'aprobado'
+         AND p.fecha_inicio <= $1
+         AND COALESCE(p.fecha_fin, p.fecha_inicio) >= $2
+       ORDER BY u.apellido_paterno ASC, u.nombres ASC, p.fecha_inicio ASC`,
+      [end, start]
+    );
+
+    const fmt = (v: string) => {
+      const [y, m, d] = v.split('-');
+      return `${d}/${m}/${y}`;
+    };
+
+    return result.rows.map((p) => {
+      const d1 = Math.max(new Date(p.fecha_inicio + 'T12:00:00').getTime(), new Date(start + 'T12:00:00').getTime());
+      const d2 = Math.min(new Date((p.fecha_fin || p.fecha_inicio) + 'T12:00:00').getTime(), new Date(end + 'T12:00:00').getTime());
+      const diffDays = Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
+      const dias = p.tipo_jornada === 'media' ? diffDays * 0.5 : diffDays;
+      const diasStr = Number.isInteger(dias) ? String(dias) : String(Math.round(dias * 10) / 10).replace('.', ',');
+      return {
+        nombre: `${p.nombres} ${p.apellido_paterno}${p.apellido_materno ? ` ${p.apellido_materno}` : ''}`.trim(),
+        dias: diasStr,
+        desde: fmt(p.fecha_inicio),
+        hasta: p.fecha_fin ? fmt(p.fecha_fin) : fmt(p.fecha_inicio),
+        observaciones: p.motivo,
+      };
+    });
+  },
+
   async findForReport(filters: { employee?: string; startDate?: string; endDate?: string; year?: number; cargo?: string }) {
     const conditions: string[] = [];
     const values: unknown[] = [];

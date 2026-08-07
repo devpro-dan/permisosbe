@@ -18,6 +18,7 @@ router.post('/reporte/general/excel', authorize('reportes', 'view'), permisoCont
 router.post('/reporte/trabajadores', authorize('reportes', 'view'), permisoController.reporteResumenTrabajadores);
 router.post('/reporte/trabajadores/pdf', authorize('reportes', 'view'), permisoController.reporteResumenTrabajadoresPDF);
 router.post('/reporte/trabajadores/excel', authorize('reportes', 'view'), permisoController.reporteResumenTrabajadoresExcel);
+router.post('/reporte/oficio', authorize('reportes', 'view'), permisoController.generarOficio);
 
 router.get('/', authorize('permisos_administrativos', 'view'), permisoController.listarTodos);
 router.get('/usuario/:userId', authorize('permisos_administrativos', 'view'), permisoController.getByUserId);

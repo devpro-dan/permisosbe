@@ -520,4 +520,28 @@ export const permisoController = {
       res.status(500).json({ message: 'Error al obtener datos del reporte' });
     }
   },
+
+  async generarOficio(req: Request, res: Response) {
+    try {
+      const month = (req.body.month as string) || '';
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        res.status(400).json({ message: 'Debe indicar el mes en formato AAAA-MM' });
+        return;
+      }
+      const ord = ((req.body.ord as string) || '').trim();
+      if (ord && !/^\d{1,4}$/.test(ord)) {
+        res.status(400).json({ message: 'El número de Ord. debe contener solo números y máximo 4 dígitos' });
+        return;
+      }
+      const permisos = await permisoService.getPermisosDelMes(month);
+      const { oficioService } = require('../services/oficio.service');
+      const docxBuffer = await oficioService.generarOficio(permisos, month, ord);
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename=oficio_permisos_${month}.docx`);
+      res.send(docxBuffer);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al generar el oficio' });
+    }
+  },
 };

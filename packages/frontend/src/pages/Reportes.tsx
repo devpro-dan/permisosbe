@@ -57,6 +57,17 @@ export default function Reportes() {
   const [maxDias, setMaxDias] = useState(0);
   const [resumenLoading, setResumenLoading] = useState(false);
   const [resumenExporting, setResumenExporting] = useState<'pdf' | 'excel' | null>(null);
+  const [oficioMonth, setOficioMonth] = useState(`${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`);
+  const [oficioOrd, setOficioOrd] = useState('023');
+  const [oficioExporting, setOficioExporting] = useState(false);
+
+  const mesesAnio = Array.from({ length: 12 }, (_, i) => `${currentYear}-${String(i + 1).padStart(2, '0')}`);
+
+  const nombresMeses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const formatearMes = (mes: string) => {
+    const [y, m] = mes.split('-');
+    return `${nombresMeses[parseInt(m, 10) - 1]} ${y}`;
+  };
 
   useEffect(() => {
     userApi.list().then((res) => setUsuarios(res.data)).catch(() => {});
@@ -155,6 +166,31 @@ export default function Reportes() {
       toast({ message: err.response?.data?.message || 'Error al exportar reporte por trabajador', type: 'error' });
     } finally {
       setResumenExporting(null);
+    }
+  };
+
+  const handleExportOficio = async () => {
+    if (!oficioMonth) {
+      toast({ message: 'Selecciona un mes', type: 'error' });
+      return;
+    }
+    if (!oficioOrd.trim()) {
+      toast({ message: 'Ingresa el número de Ord.', type: 'error' });
+      return;
+    }
+    setOficioExporting(true);
+    try {
+      const response = await permisoApi.reporteOficio(oficioMonth, oficioOrd.trim());
+      downloadBlob(
+        response.data,
+        `oficio_permisos_${oficioMonth}.docx`,
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      );
+      toast({ message: 'Informe generado correctamente', type: 'success' });
+    } catch (err: any) {
+      toast({ message: err.response?.data?.message || 'Error al generar el informe', type: 'error' });
+    } finally {
+      setOficioExporting(false);
     }
   };
 
@@ -444,6 +480,56 @@ export default function Reportes() {
             <p className="text-sm">Presiona "Generar resumen" para ver los días por trabajador.</p>
           </div>
         )}
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-5 mt-6">
+        <div className="flex items-start gap-3 mb-2">
+          <div className="p-2 rounded-lg bg-primary-50 text-primary-600">
+            <FileText className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">Informe de permisos del mes (Oficio)</h2>
+            <p className="text-sm text-gray-500">Genera el oficio con el detalle de permisos administrativos aprobados del mes seleccionado.</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-4 mt-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Calendar className="inline w-4 h-4 mr-1" />Mes
+            </label>
+            <select
+              value={oficioMonth}
+              onChange={(e) => setOficioMonth(e.target.value)}
+              className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white min-w-48"
+            >
+              {mesesAnio.map((mes) => (
+                <option key={mes} value={mes}>
+                  {formatearMes(mes)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">N° Ord.</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
+              value={oficioOrd}
+              onChange={(e) => setOficioOrd(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="023"
+              className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500 w-28"
+            />
+          </div>
+          <button
+            onClick={handleExportOficio}
+            disabled={oficioExporting || !oficioMonth}
+            className="inline-flex items-center gap-2 px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+          >
+            <FileText className="w-4 h-4" /> {oficioExporting ? 'Generando...' : 'Generar informe DOC'}
+          </button>
+        </div>
       </div>
     </div>
   );

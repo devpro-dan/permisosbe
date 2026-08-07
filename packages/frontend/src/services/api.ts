@@ -102,6 +102,7 @@ export const permisoApi = {
   reporteTrabajadores: (params: Record<string, string | number>) => api.post('/permisos/reporte/trabajadores', params),
   reporteTrabajadoresPDF: (params: Record<string, string | number>) => api.post('/permisos/reporte/trabajadores/pdf', params, { responseType: 'blob' }),
   reporteTrabajadoresExcel: (params: Record<string, string | number>) => api.post('/permisos/reporte/trabajadores/excel', params, { responseType: 'blob' }),
+  reporteOficio: (month: string, ord?: string) => api.post('/permisos/reporte/oficio', { month, ord }, { responseType: 'blob' }),
   certificado: (id: number) => api.get(`/permisos/${id}/certificado`, { responseType: 'blob' }),
   subirComprobante: (id: number, file: File) => {
     const formData = new FormData();
