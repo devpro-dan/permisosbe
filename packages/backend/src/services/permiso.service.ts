@@ -152,6 +152,72 @@ export const permisoService = {
     return result.rows;
   },
 
+  async getResumenTrabajadores(filters: { employee?: string; startDate?: string; endDate?: string; year?: number }) {
+    const config = await systemConfigRepository.findByClave('permisos_por_anio');
+    const maxDias = parseInt(config?.valor || '6', 10);
+
+    const permisosConditions: string[] = [`p.estado = 'aprobado'`];
+    const permisosValues: unknown[] = [];
+    let index = 1;
+
+    if (filters.year) {
+      permisosConditions.push(`EXTRACT(YEAR FROM p.fecha_solicitud) = $${index}`);
+      permisosValues.push(filters.year);
+      index++;
+    }
+    if (filters.startDate) {
+      permisosConditions.push(`COALESCE(p.fecha_fin, p.fecha_inicio) >= $${index}`);
+      permisosValues.push(filters.startDate);
+      index++;
+    }
+    if (filters.endDate) {
+      permisosConditions.push(`p.fecha_inicio <= $${index}`);
+      permisosValues.push(filters.endDate);
+      index++;
+    }
+
+    const permisosResult = await pool.query(
+      `SELECT p.user_id, p.fecha_inicio, p.fecha_fin, p.tipo_jornada
+       FROM permisos_administrativos p
+       WHERE ${permisosConditions.join(' AND ')}`,
+      permisosValues
+    );
+
+    const usedByUser: Record<number, number> = {};
+    for (const p of permisosResult.rows) {
+      const d1 = new Date(p.fecha_inicio + 'T12:00:00');
+      const d2 = new Date((p.fecha_fin || p.fecha_inicio) + 'T12:00:00');
+      const diffDays = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000) + 1);
+      const dias = p.tipo_jornada === 'media' ? diffDays * 0.5 : diffDays;
+      usedByUser[p.user_id] = (usedByUser[p.user_id] || 0) + dias;
+    }
+
+    const userConditions: string[] = [];
+    const userValues: unknown[] = [];
+    if (filters.employee) {
+      userConditions.push(`(nombres || ' ' || apellido_paterno ILIKE $${index} OR rut || '-' || dv ILIKE $${index})`);
+      userValues.push(`%${filters.employee}%`);
+      index++;
+    }
+
+    const usersResult = await pool.query(
+      `SELECT id, nombres, apellido_paterno, apellido_materno, rut, dv, cargo
+       FROM users
+       ${userConditions.length > 0 ? `WHERE ${userConditions.join(' AND ')}` : ''}
+       ORDER BY apellido_paterno ASC, nombres ASC`,
+      userValues
+    );
+
+    return {
+      maxDias,
+      trabajadores: usersResult.rows.map((u) => {
+        const usados = Math.round((usedByUser[u.id] || 0) * 10) / 10;
+        const disponibles = Math.max(0, Math.round((maxDias - usados) * 10) / 10);
+        return { ...u, maxDias, dias_usados: usados, dias_disponibles: disponibles };
+      }),
+    };
+  },
+
   async findForReport(filters: { employee?: string; startDate?: string; endDate?: string; year?: number }) {
     const conditions: string[] = [];
     const values: unknown[] = [];

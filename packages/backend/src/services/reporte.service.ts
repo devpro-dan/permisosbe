@@ -24,6 +24,61 @@ function formatearFechaLetras(fecha: Date): string {
   return `${dia} de ${mes} de ${anio}`;
 }
 
+function drawTable(
+  doc: PDFKit.PDFDocument,
+  opts: {
+    headers: string[];
+    rows: (string | number)[][];
+    widths: number[];
+    fontSize?: number;
+    headerBg?: string;
+  }
+) {
+  const ML = 45;
+  const rowH = 22;
+  const headerH = 24;
+  const FONT = 'Helvetica';
+  const BOLD = 'Helvetica-Bold';
+  const BLACK = '#000000';
+  const GOLD = '#FFC000';
+
+  function cell(x: number, y: number, w: number, h: number, text: string, isHeader: boolean, align: string) {
+    if (isHeader) {
+      doc.save();
+      doc.rect(x, y, w, h).fill(opts.headerBg || GOLD);
+      doc.restore();
+    }
+    doc.strokeColor(BLACK);
+    doc.lineWidth(0.5);
+    doc.rect(x, y, w, h).stroke();
+    doc.font(isHeader ? BOLD : FONT).fontSize(opts.fontSize || 9).fillColor(BLACK);
+    const px = doc.x, py = doc.y;
+    const pad = 3;
+    const textOpts: any = { width: w - pad * 2 };
+    if (align === 'center') textOpts.align = 'center';
+    doc.text(text, x + pad, y + (h - doc.heightOfString(text, textOpts)) / 2, textOpts);
+    doc.x = px;
+    doc.y = py;
+  }
+
+  let x0 = ML;
+  doc.font(BOLD).fontSize(opts.fontSize || 9).fillColor(BLACK);
+  opts.headers.forEach((h, i) => {
+    cell(x0, doc.y, opts.widths[i], headerH, h, true, 'center');
+    x0 += opts.widths[i];
+  });
+  doc.y += headerH;
+
+  opts.rows.forEach((row) => {
+    x0 = ML;
+    row.forEach((val, i) => {
+      cell(x0, doc.y, opts.widths[i], rowH, String(val), false, i === 0 ? 'center' : 'left');
+      x0 += opts.widths[i];
+    });
+    doc.y += rowH;
+  });
+}
+
 export const reporteService = {
   generarReporteGeneralPDF(permisos: any[], filters: { employee?: string; startDate?: string; endDate?: string; year?: number }): Promise<Buffer> {
     return new Promise((resolve, reject) => {
@@ -38,17 +93,72 @@ export const reporteService = {
       doc.fontSize(10).text(`Filtros: ${filters.employee || 'Todos los funcionarios'} | Año: ${filters.year || 'Todos'}`);
       doc.text(`Período: ${filters.startDate || 'Inicio'} a ${filters.endDate || 'Actualidad'}`);
       doc.text(`Registros: ${permisos.length}`);
-      doc.moveDown();
-      doc.fontSize(9);
+      doc.moveDown(0.6);
 
-      permisos.forEach((p, index) => {
-        const funcionario = `${p.nombres || ''} ${p.apellido_paterno || ''}`.trim();
-        const fechas = `${fmtDate(p.fecha_inicio)}${p.fecha_fin ? ` - ${fmtDate(p.fecha_fin)}` : ''}`;
-        const dias = calcularDias(p.fecha_inicio, p.fecha_fin);
-        doc.text(`${index + 1}. ${funcionario} | ${p.rut}-${p.dv} | ${fechas} | ${dias} días | ${p.estado} | ${p.motivo}`);
-        doc.moveDown(0.35);
+      const headers = ['N°', 'Funcionario', 'RUT', 'Desde', 'Hasta', 'Días', 'Estado'];
+      const widths = [30, 140, 75, 70, 70, 50, 70];
+      const rows = permisos.map((p, i) => {
+        const estadoLabel = p.estado === 'en_revision' ? 'En Revisión' : p.estado === 'aprobado' ? 'Aprobado' : 'Rechazado';
+        return [
+          i + 1,
+          `${p.nombres || ''} ${p.apellido_paterno || ''}`.trim(),
+          `${p.rut}-${p.dv}`,
+          fmtDate(p.fecha_inicio),
+          p.fecha_fin ? fmtDate(p.fecha_fin) : '-',
+          calcularDias(p.fecha_inicio, p.fecha_fin),
+          estadoLabel,
+        ];
       });
+
+      drawTable(doc, { headers, rows, widths });
+
       if (permisos.length === 0) doc.text('No hay permisos para los filtros seleccionados.');
+      doc.end();
+    });
+  },
+
+  generarReporteTrabajadoresPDF(
+    trabajadores: any[],
+    maxDias: number,
+    filters: { employee?: string; startDate?: string; endDate?: string; year?: number }
+  ): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 45 });
+      const buffers: Buffer[] = [];
+      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      doc.fontSize(19).text('Reporte de Días de Permiso por Trabajador', { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(10).text(`Filtros: ${filters.employee || 'Todos los funcionarios'} | Año: ${filters.year || 'Todos'}`);
+      doc.text(`Período: ${filters.startDate || 'Inicio'} a ${filters.endDate || 'Actualidad'}`);
+      doc.text(`Días máximos por trabajador: ${maxDias}`);
+      doc.moveDown(0.6);
+
+      const fmtDias = (v: number): string => {
+        const rounded = Math.round(v * 10) / 10;
+        return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1).replace('.', ',');
+      };
+
+      const headers = ['N°', 'Funcionario', 'RUT', 'Cargo', 'Disponibles', 'Tomados'];
+      const widths = [30, 140, 75, 95, 75, 70];
+      const rows = trabajadores.map((t, i) => [
+        i + 1,
+        `${t.nombres} ${t.apellido_paterno}${t.apellido_materno ? ` ${t.apellido_materno}` : ''}`.trim(),
+        `${t.rut}-${t.dv}`,
+        t.cargo || '-',
+        fmtDias(t.dias_disponibles),
+        fmtDias(t.dias_usados),
+      ]);
+
+      const totalDisponibles = trabajadores.reduce((acc, t) => acc + t.dias_disponibles, 0);
+      const totalUsados = trabajadores.reduce((acc, t) => acc + t.dias_usados, 0);
+      rows.push(['', 'TOTAL', '', '', fmtDias(totalDisponibles), fmtDias(totalUsados)]);
+
+      drawTable(doc, { headers, rows, widths });
+
+      if (trabajadores.length === 0) doc.text('No hay trabajadores para los filtros seleccionados.');
       doc.end();
     });
   },

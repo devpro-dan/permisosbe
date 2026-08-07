@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Search, Calendar, FileSpreadsheet, FileText, X, Filter } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Calendar, FileSpreadsheet, FileText, X, Filter, Users } from 'lucide-react';
 import { permisoApi, userApi } from '../services/api';
 import { Permiso, User } from '../types';
 import { DataTable } from '../components/DataTable';
@@ -52,6 +52,10 @@ export default function Reportes() {
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
   const [usuarios, setUsuarios] = useState<User[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [resumen, setResumen] = useState<any[]>([]);
+  const [maxDias, setMaxDias] = useState(0);
+  const [resumenLoading, setResumenLoading] = useState(false);
+  const [resumenExporting, setResumenExporting] = useState(false);
 
   useEffect(() => {
     userApi.list().then((res) => setUsuarios(res.data)).catch(() => {});
@@ -103,6 +107,42 @@ export default function Reportes() {
     }
   };
 
+  const handleGenerarResumen = async () => {
+    setResumenLoading(true);
+    try {
+      const res = await permisoApi.reporteTrabajadores(params());
+      setResumen(res.data.trabajadores || []);
+      setMaxDias(res.data.maxDias || 0);
+    } catch (err: any) {
+      toast({ message: err.response?.data?.message || 'Error al generar resumen por trabajador', type: 'error' });
+      setResumen([]);
+    } finally {
+      setResumenLoading(false);
+    }
+  };
+
+  const handleExportResumenPDF = async () => {
+    setResumenExporting(true);
+    try {
+      const response = await permisoApi.reporteTrabajadoresPDF(params());
+      downloadBlob(
+        response.data,
+        'reporte_dias_por_trabajador.pdf',
+        'application/pdf'
+      );
+      toast({ message: 'Reporte por trabajador exportado correctamente', type: 'success' });
+    } catch (err: any) {
+      toast({ message: err.response?.data?.message || 'Error al exportar reporte por trabajador', type: 'error' });
+    } finally {
+      setResumenExporting(false);
+    }
+  };
+
+  const fmtDias = (v: number) => {
+    const rounded = Math.round(v * 10) / 10;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1).replace('.', ',');
+  };
+
   const clear = () => {
     setEmployee('');
     setYear(String(currentYear));
@@ -128,6 +168,22 @@ export default function Reportes() {
     { key: 'tipo_jornada', label: 'Jornada', render: (v: string) => v === 'completa' ? 'Completa' : 'Media' },
     { key: 'estado', label: 'Estado', render: (_: any, row: Permiso) => estadoBadge(row.estado) },
     { key: 'motivo', label: 'Motivo' },
+  ];
+
+  const resumenColumns = [
+    { key: 'nombres', label: 'Funcionario', render: (_: any, row: any) => `${row.nombres} ${row.apellido_paterno}${row.apellido_materno ? ` ${row.apellido_materno}` : ''}` },
+    { key: 'rut', label: 'RUT', render: (_: any, row: any) => `${row.rut}-${row.dv}` },
+    { key: 'cargo', label: 'Cargo' },
+    {
+      key: 'dias_disponibles',
+      label: 'Días disponibles',
+      render: (v: number) => <span className="font-semibold text-success-700">{fmtDias(v)}</span>,
+    },
+    {
+      key: 'dias_usados',
+      label: 'Días tomados',
+      render: (v: number) => <span className="font-semibold text-danger-700">{fmtDias(v)}</span>,
+    },
   ];
 
   const hasFilters = employee || startDate || endDate || year;
@@ -278,6 +334,68 @@ export default function Reportes() {
           <p className="text-sm mt-1">Puedes filtrar por funcionario, año o rango de fechas.</p>
         </div>
       )}
+
+      <div className="bg-white rounded-lg shadow p-5 mt-6">
+        <div className="flex items-start gap-3 mb-2">
+          <div className="p-2 rounded-lg bg-primary-50 text-primary-600">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">Resumen de días por trabajador</h2>
+            <p className="text-sm text-gray-500">Días de permiso disponibles y tomados por cada funcionario según los filtros aplicados.</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3 mt-4">
+          <button
+            onClick={handleGenerarResumen}
+            disabled={resumenLoading}
+            className="inline-flex items-center gap-2 px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Filter className="w-4 h-4" /> {resumenLoading ? 'Generando...' : 'Generar resumen'}
+          </button>
+          <button
+            onClick={handleExportResumenPDF}
+            disabled={resumenExporting !== null || resumen.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-danger-600 hover:bg-danger-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+          >
+            <FileText className="w-4 h-4" /> {resumenExporting ? 'Exportando...' : 'Exportar PDF'}
+          </button>
+        </div>
+
+        {resumenLoading ? (
+          <div className="mt-5">
+            <LoadingSpinner message="Generando resumen por trabajador..." />
+          </div>
+        ) : resumen.length > 0 ? (
+          <div className="mt-5">
+            {maxDias > 0 && (
+              <p className="text-sm text-gray-600 mb-3">
+                Máximo de días por trabajador: <span className="font-semibold text-primary-700">{maxDias} días</span>
+              </p>
+            )}
+            <DataTable columns={resumenColumns} data={resumen} />
+            <div className="mt-4 md:hidden space-y-3">
+              {resumen.map((t) => (
+                <MobileCard key={t.id}>
+                  <p className="font-medium">{t.nombres} {t.apellido_paterno} {t.apellido_materno || ''}</p>
+                  <p className="text-sm text-gray-500">{t.rut}-{t.dv}</p>
+                  <p className="text-sm text-gray-600">{t.cargo || '-'}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-sm font-semibold text-success-700">{fmtDias(t.dias_disponibles)} disponibles</span>
+                    <span className="text-sm font-semibold text-danger-700">{fmtDias(t.dias_usados)} tomados</span>
+                  </div>
+                </MobileCard>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-10 text-gray-400 mt-2">
+            <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Presiona "Generar resumen" para ver los días por trabajador.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

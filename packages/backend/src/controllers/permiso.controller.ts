@@ -470,6 +470,41 @@ export const permisoController = {
     }
   },
 
+  async reporteResumenTrabajadores(req: Request, res: Response) {
+    try {
+      const filters = {
+        employee: (req.query.employee as string) || undefined,
+        startDate: (req.query.startDate as string) || undefined,
+        endDate: (req.query.endDate as string) || undefined,
+        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
+      };
+      const resumen = await permisoService.getResumenTrabajadores(filters);
+      res.json(resumen);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al obtener resumen por trabajador' });
+    }
+  },
+
+  async reporteResumenTrabajadoresPDF(req: Request, res: Response) {
+    try {
+      const filters = {
+        employee: (req.query.employee as string) || undefined,
+        startDate: (req.query.startDate as string) || undefined,
+        endDate: (req.query.endDate as string) || undefined,
+        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
+      };
+      const resumen = await permisoService.getResumenTrabajadores(filters);
+      const { reporteService } = require('../services/reporte.service');
+      const pdfBuffer = await reporteService.generarReporteTrabajadoresPDF(resumen.trabajadores, resumen.maxDias, filters);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename=reporte_dias_por_trabajador.pdf');
+      res.send(pdfBuffer);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al generar reporte de días por trabajador' });
+    }
+  },
+
   async reporteConsulta(req: Request, res: Response) {
     try {
       const filters = {
