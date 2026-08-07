@@ -152,7 +152,7 @@ export const permisoService = {
     return result.rows;
   },
 
-  async getResumenTrabajadores(filters: { employee?: string; startDate?: string; endDate?: string; year?: number }) {
+  async getResumenTrabajadores(filters: { employee?: string; startDate?: string; endDate?: string; year?: number; cargo?: string }) {
     const config = await systemConfigRepository.findByClave('permisos_por_anio');
     const maxDias = parseInt(config?.valor || '6', 10);
 
@@ -194,10 +194,16 @@ export const permisoService = {
 
     const userConditions: string[] = [];
     const userValues: unknown[] = [];
+    let userIndex = 1;
     if (filters.employee) {
-      userConditions.push(`(nombres || ' ' || apellido_paterno ILIKE $${index} OR rut || '-' || dv ILIKE $${index})`);
+      userConditions.push(`(nombres || ' ' || apellido_paterno ILIKE $${userIndex} OR rut || '-' || dv ILIKE $${userIndex})`);
       userValues.push(`%${filters.employee}%`);
-      index++;
+      userIndex++;
+    }
+    if (filters.cargo) {
+      userConditions.push(`cargo ILIKE $${userIndex}`);
+      userValues.push(`%${filters.cargo}%`);
+      userIndex++;
     }
 
     const usersResult = await pool.query(
@@ -218,7 +224,7 @@ export const permisoService = {
     };
   },
 
-  async findForReport(filters: { employee?: string; startDate?: string; endDate?: string; year?: number }) {
+  async findForReport(filters: { employee?: string; startDate?: string; endDate?: string; year?: number; cargo?: string }) {
     const conditions: string[] = [];
     const values: unknown[] = [];
     let index = 1;
@@ -226,6 +232,11 @@ export const permisoService = {
     if (filters.employee) {
       conditions.push(`(u.nombres || ' ' || u.apellido_paterno ILIKE $${index} OR u.rut || '-' || u.dv ILIKE $${index})`);
       values.push(`%${filters.employee}%`);
+      index++;
+    }
+    if (filters.cargo) {
+      conditions.push(`u.cargo ILIKE $${index}`);
+      values.push(`%${filters.cargo}%`);
       index++;
     }
     if (filters.startDate) {

@@ -43,6 +43,7 @@ const estadoBadge = (estado: string) => {
 
 export default function Reportes() {
   const [employee, setEmployee] = useState('');
+  const [cargo, setCargo] = useState('');
   const [year, setYear] = useState(String(currentYear));
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -55,7 +56,7 @@ export default function Reportes() {
   const [resumen, setResumen] = useState<any[]>([]);
   const [maxDias, setMaxDias] = useState(0);
   const [resumenLoading, setResumenLoading] = useState(false);
-  const [resumenExporting, setResumenExporting] = useState(false);
+  const [resumenExporting, setResumenExporting] = useState<'pdf' | 'excel' | null>(null);
 
   useEffect(() => {
     userApi.list().then((res) => setUsuarios(res.data)).catch(() => {});
@@ -70,8 +71,10 @@ export default function Reportes() {
       })
     : [];
 
+  const cargos = Array.from(new Set(usuarios.map((u) => u.cargo).filter(Boolean))).sort();
+
   const params = () => Object.fromEntries(
-    Object.entries({ employee, startDate, endDate, year }).filter(([, v]) => v !== '')
+    Object.entries({ employee, cargo, startDate, endDate, year }).filter(([, v]) => v !== '')
   ) as Record<string, string>;
 
   const handleBuscar = async () => {
@@ -122,7 +125,7 @@ export default function Reportes() {
   };
 
   const handleExportResumenPDF = async () => {
-    setResumenExporting(true);
+    setResumenExporting('pdf');
     try {
       const response = await permisoApi.reporteTrabajadoresPDF(params());
       downloadBlob(
@@ -134,7 +137,24 @@ export default function Reportes() {
     } catch (err: any) {
       toast({ message: err.response?.data?.message || 'Error al exportar reporte por trabajador', type: 'error' });
     } finally {
-      setResumenExporting(false);
+      setResumenExporting(null);
+    }
+  };
+
+  const handleExportResumenExcel = async () => {
+    setResumenExporting('excel');
+    try {
+      const response = await permisoApi.reporteTrabajadoresExcel(params());
+      downloadBlob(
+        response.data,
+        'reporte_dias_por_trabajador.xlsx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      toast({ message: 'Reporte por trabajador exportado correctamente', type: 'success' });
+    } catch (err: any) {
+      toast({ message: err.response?.data?.message || 'Error al exportar reporte por trabajador', type: 'error' });
+    } finally {
+      setResumenExporting(null);
     }
   };
 
@@ -145,6 +165,7 @@ export default function Reportes() {
 
   const clear = () => {
     setEmployee('');
+    setCargo('');
     setYear(String(currentYear));
     setStartDate('');
     setEndDate('');
@@ -175,6 +196,11 @@ export default function Reportes() {
     { key: 'rut', label: 'RUT', render: (_: any, row: any) => `${row.rut}-${row.dv}` },
     { key: 'cargo', label: 'Cargo' },
     {
+      key: 'maxDias',
+      label: 'Días por año',
+      render: (v: number) => <span className="font-semibold text-gray-700">{fmtDias(v)}</span>,
+    },
+    {
       key: 'dias_disponibles',
       label: 'Días disponibles',
       render: (v: number) => <span className="font-semibold text-success-700">{fmtDias(v)}</span>,
@@ -186,7 +212,7 @@ export default function Reportes() {
     },
   ];
 
-  const hasFilters = employee || startDate || endDate || year;
+  const hasFilters = employee || cargo || startDate || endDate || year;
 
   return (
     <div>
@@ -194,7 +220,7 @@ export default function Reportes() {
       <p className="text-gray-500 mb-6">Consulta y exporta permisos de todos los funcionarios aplicando filtros.</p>
 
       <div className="bg-white rounded-lg shadow p-5 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <Search className="inline w-4 h-4 mr-1" />Funcionario
@@ -224,6 +250,21 @@ export default function Reportes() {
                 ))}
               </div>
             )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Search className="inline w-4 h-4 mr-1" />Cargo
+            </label>
+            <select
+              value={cargo}
+              onChange={(e) => setCargo(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+            >
+              <option value="">Todos los cargos</option>
+              {cargos.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -359,7 +400,14 @@ export default function Reportes() {
             disabled={resumenExporting !== null || resumen.length === 0}
             className="inline-flex items-center gap-2 px-4 py-2 bg-danger-600 hover:bg-danger-700 text-white rounded-lg disabled:opacity-50 transition-colors"
           >
-            <FileText className="w-4 h-4" /> {resumenExporting ? 'Exportando...' : 'Exportar PDF'}
+            <FileText className="w-4 h-4" /> {resumenExporting === 'pdf' ? 'Exportando...' : 'Exportar PDF'}
+          </button>
+          <button
+            onClick={handleExportResumenExcel}
+            disabled={resumenExporting !== null || resumen.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-success-600 hover:bg-success-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+          >
+            <FileSpreadsheet className="w-4 h-4" /> {resumenExporting === 'excel' ? 'Exportando...' : 'Exportar Excel'}
           </button>
         </div>
 
@@ -382,6 +430,7 @@ export default function Reportes() {
                   <p className="text-sm text-gray-500">{t.rut}-{t.dv}</p>
                   <p className="text-sm text-gray-600">{t.cargo || '-'}</p>
                   <div className="flex items-center justify-between mt-2">
+                    <span className="text-sm font-semibold text-gray-700">{fmtDias(t.maxDias)} por año</span>
                     <span className="text-sm font-semibold text-success-700">{fmtDias(t.dias_disponibles)} disponibles</span>
                     <span className="text-sm font-semibold text-danger-700">{fmtDias(t.dias_usados)} tomados</span>
                   </div>

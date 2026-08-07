@@ -94,13 +94,14 @@ export const permisoApi = {
   delete: (id: number) => api.delete(`/permisos/${id}`),
   aprobar: (id: number) => api.post(`/permisos/${id}/aprobar`),
   rechazar: (id: number, motivo_rechazo: string) => api.post(`/permisos/${id}/rechazar`, { motivo_rechazo }),
-  reportePDF: (year?: number) => api.get('/permisos/reporte/pdf', { params: { year }, responseType: 'blob' }),
-  reporteExcel: (year?: number) => api.get('/permisos/reporte/excel', { params: { year }, responseType: 'blob' }),
-  reporteConsulta: (params: Record<string, string | number>) => api.get('/permisos/reporte/consulta', { params }),
-  reporteGeneralPDF: (params: Record<string, string | number>) => api.get('/permisos/reporte/general/pdf', { params, responseType: 'blob' }),
-  reporteGeneralExcel: (params: Record<string, string | number>) => api.get('/permisos/reporte/general/excel', { params, responseType: 'blob' }),
-  reporteTrabajadores: (params: Record<string, string | number>) => api.get('/permisos/reporte/trabajadores', { params }),
-  reporteTrabajadoresPDF: (params: Record<string, string | number>) => api.get('/permisos/reporte/trabajadores/pdf', { params, responseType: 'blob' }),
+  reportePDF: (year?: number) => api.post('/permisos/reporte/pdf', { year }, { responseType: 'blob' }),
+  reporteExcel: (year?: number) => api.post('/permisos/reporte/excel', { year }, { responseType: 'blob' }),
+  reporteConsulta: (params: Record<string, string | number>) => api.post('/permisos/reporte/consulta', params),
+  reporteGeneralPDF: (params: Record<string, string | number>) => api.post('/permisos/reporte/general/pdf', params, { responseType: 'blob' }),
+  reporteGeneralExcel: (params: Record<string, string | number>) => api.post('/permisos/reporte/general/excel', params, { responseType: 'blob' }),
+  reporteTrabajadores: (params: Record<string, string | number>) => api.post('/permisos/reporte/trabajadores', params),
+  reporteTrabajadoresPDF: (params: Record<string, string | number>) => api.post('/permisos/reporte/trabajadores/pdf', params, { responseType: 'blob' }),
+  reporteTrabajadoresExcel: (params: Record<string, string | number>) => api.post('/permisos/reporte/trabajadores/excel', params, { responseType: 'blob' }),
   certificado: (id: number) => api.get(`/permisos/${id}/certificado`, { responseType: 'blob' }),
   subirComprobante: (id: number, file: File) => {
     const formData = new FormData();
@@ -120,7 +121,7 @@ export const configApi = {
 };
 
 export const auditLogApi = {
-  list: (params?: Record<string, string | number>) => api.get('/audit-log', { params }),
+  list: (params?: Record<string, string | number>) => api.post('/audit-log', params),
 };
 
 export const sessionApi = {

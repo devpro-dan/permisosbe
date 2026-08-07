@@ -3,6 +3,20 @@ import ExcelJS from 'exceljs';
 import fs from 'fs';
 import path from 'path';
 
+const assetsDir = path.join(__dirname, '..', 'assets');
+const logoPath = path.join(assetsDir, 'logo.png');
+
+function drawLogo(doc: PDFKit.PDFDocument): number {
+  if (!fs.existsSync(logoPath)) return 0;
+  try {
+    const width = 90;
+    doc.image(logoPath, doc.page.margins.left, 20, { width });
+    return 20 + width * (155 / 240);
+  } catch {
+    return 0;
+  }
+}
+
 function fmtDate(v: string): string {
   const [y, m, d] = v.split('T')[0].split('-');
   return `${d}/${m}/${y}`;
@@ -40,12 +54,12 @@ function drawTable(
   const FONT = 'Helvetica';
   const BOLD = 'Helvetica-Bold';
   const BLACK = '#000000';
-  const GOLD = '#FFC000';
+  const HEADER_BLUE = '#60b0c0';
 
   function cell(x: number, y: number, w: number, h: number, text: string, isHeader: boolean, align: string) {
     if (isHeader) {
       doc.save();
-      doc.rect(x, y, w, h).fill(opts.headerBg || GOLD);
+      doc.rect(x, y, w, h).fill(opts.headerBg || HEADER_BLUE);
       doc.restore();
     }
     doc.strokeColor(BLACK);
@@ -80,7 +94,7 @@ function drawTable(
 }
 
 export const reporteService = {
-  generarReporteGeneralPDF(permisos: any[], filters: { employee?: string; startDate?: string; endDate?: string; year?: number }): Promise<Buffer> {
+  generarReporteGeneralPDF(permisos: any[], filters: { employee?: string; startDate?: string; endDate?: string; year?: number; cargo?: string }): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 45 });
       const buffers: Buffer[] = [];
@@ -88,9 +102,12 @@ export const reporteService = {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
 
+      const logoBottom = drawLogo(doc);
+      if (logoBottom > 0) doc.y = logoBottom + 8;
+
       doc.fontSize(19).text('Reporte General de Permisos Administrativos', { align: 'center' });
       doc.moveDown(0.5);
-      doc.fontSize(10).text(`Filtros: ${filters.employee || 'Todos los funcionarios'} | Año: ${filters.year || 'Todos'}`);
+      doc.fontSize(10).text(`Filtros: ${filters.employee || 'Todos los funcionarios'} | Cargo: ${filters.cargo || 'Todos'} | Año: ${filters.year || 'Todos'}`);
       doc.text(`Período: ${filters.startDate || 'Inicio'} a ${filters.endDate || 'Actualidad'}`);
       doc.text(`Registros: ${permisos.length}`);
       doc.moveDown(0.6);
@@ -120,7 +137,7 @@ export const reporteService = {
   generarReporteTrabajadoresPDF(
     trabajadores: any[],
     maxDias: number,
-    filters: { employee?: string; startDate?: string; endDate?: string; year?: number }
+    filters: { employee?: string; startDate?: string; endDate?: string; year?: number; cargo?: string }
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 45 });
@@ -129,9 +146,12 @@ export const reporteService = {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
 
+      const logoBottom = drawLogo(doc);
+      if (logoBottom > 0) doc.y = logoBottom + 8;
+
       doc.fontSize(19).text('Reporte de Días de Permiso por Trabajador', { align: 'center' });
       doc.moveDown(0.5);
-      doc.fontSize(10).text(`Filtros: ${filters.employee || 'Todos los funcionarios'} | Año: ${filters.year || 'Todos'}`);
+      doc.fontSize(10).text(`Filtros: ${filters.employee || 'Todos los funcionarios'} | Cargo: ${filters.cargo || 'Todos'} | Año: ${filters.year || 'Todos'}`);
       doc.text(`Período: ${filters.startDate || 'Inicio'} a ${filters.endDate || 'Actualidad'}`);
       doc.text(`Días máximos por trabajador: ${maxDias}`);
       doc.moveDown(0.6);
@@ -141,20 +161,21 @@ export const reporteService = {
         return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1).replace('.', ',');
       };
 
-      const headers = ['N°', 'Funcionario', 'RUT', 'Cargo', 'Disponibles', 'Tomados'];
-      const widths = [30, 140, 75, 95, 75, 70];
+      const headers = ['N°', 'Funcionario', 'RUT', 'Cargo', 'Por año', 'Disponibles', 'Tomados'];
+      const widths = [30, 120, 70, 90, 55, 70, 70];
       const rows = trabajadores.map((t, i) => [
         i + 1,
         `${t.nombres} ${t.apellido_paterno}${t.apellido_materno ? ` ${t.apellido_materno}` : ''}`.trim(),
         `${t.rut}-${t.dv}`,
         t.cargo || '-',
+        fmtDias(t.maxDias),
         fmtDias(t.dias_disponibles),
         fmtDias(t.dias_usados),
       ]);
 
       const totalDisponibles = trabajadores.reduce((acc, t) => acc + t.dias_disponibles, 0);
       const totalUsados = trabajadores.reduce((acc, t) => acc + t.dias_usados, 0);
-      rows.push(['', 'TOTAL', '', '', fmtDias(totalDisponibles), fmtDias(totalUsados)]);
+      rows.push(['', 'TOTAL', '', '', fmtDias(trabajadores[0]?.maxDias ?? 0), fmtDias(totalDisponibles), fmtDias(totalUsados)]);
 
       drawTable(doc, { headers, rows, widths });
 
@@ -163,23 +184,65 @@ export const reporteService = {
     });
   },
 
-  async generarReporteGeneralExcel(permisos: any[], filters: { employee?: string; startDate?: string; endDate?: string; year?: number }): Promise<Buffer> {
+  async generarReporteTrabajadoresExcel(
+    trabajadores: any[],
+    maxDias: number,
+    filters: { employee?: string; startDate?: string; endDate?: string; year?: number; cargo?: string }
+  ): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Días por Trabajador');
+    sheet.mergeCells('C1:H2');
+    const titleCell = sheet.getCell('C1');
+    titleCell.value = 'Reporte de Días de Permiso por Trabajador';
+    titleCell.font = { bold: true, size: 14 };
+    sheet.mergeCells('C3:H3');
+    sheet.getCell('C3').value = `Funcionario: ${filters.employee || 'Todos'} | Cargo: ${filters.cargo || 'Todos'} | Año: ${filters.year || 'Todos'} | Desde: ${filters.startDate || 'Todas'} | Hasta: ${filters.endDate || 'Todas'} | Días por año: ${maxDias}`;
+    sheet.addRow([]);
+    sheet.addRow(['#', 'Funcionario', 'RUT', 'Cargo', 'Por año', 'Disponibles', 'Tomados']);
+    sheet.columns = [
+      { key: 'id', width: 6 },
+      { key: 'funcionario', width: 32 },
+      { key: 'rut', width: 15 },
+      { key: 'cargo', width: 22 },
+      { key: 'maxDias', width: 10 },
+      { key: 'dias_disponibles', width: 13 },
+      { key: 'dias_usados', width: 11 },
+    ];
+    trabajadores.forEach((t, i) => sheet.addRow({
+      id: i + 1,
+      funcionario: `${t.nombres} ${t.apellido_paterno}${t.apellido_materno ? ` ${t.apellido_materno}` : ''}`.trim(),
+      rut: `${t.rut}-${t.dv}`,
+      cargo: t.cargo || '-',
+      maxDias,
+      dias_disponibles: t.dias_disponibles,
+      dias_usados: t.dias_usados,
+    }));
+    sheet.getRow(5).font = { bold: true };
+    return Buffer.from(await workbook.xlsx.writeBuffer());
+  },
+
+  async generarReporteGeneralExcel(permisos: any[], filters: { employee?: string; startDate?: string; endDate?: string; year?: number; cargo?: string }): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Reporte General');
-    sheet.addRow(['Reporte General de Permisos Administrativos']);
-    sheet.addRow(['Funcionario', filters.employee || 'Todos', 'Año', filters.year || 'Todos', 'Desde', filters.startDate || 'Todas', 'Hasta', filters.endDate || 'Todas']);
+    sheet.mergeCells('C1:H2');
+    const titleCell = sheet.getCell('C1');
+    titleCell.value = 'Reporte General de Permisos Administrativos';
+    titleCell.font = { bold: true, size: 14 };
+    sheet.mergeCells('C3:H3');
+    sheet.getCell('C3').value = `Funcionario: ${filters.employee || 'Todos'} | Cargo: ${filters.cargo || 'Todos'} | Año: ${filters.year || 'Todos'} | Desde: ${filters.startDate || 'Todas'} | Hasta: ${filters.endDate || 'Todas'}`;
     sheet.addRow([]);
+    sheet.addRow(['#', 'Funcionario', 'RUT', 'Fecha Solicitud', 'Fecha Inicio', 'Fecha Fin', 'Días', 'Jornada', 'Estado', 'Motivo']);
     sheet.columns = [
-      { header: '#', key: 'id', width: 6 },
-      { header: 'Funcionario', key: 'funcionario', width: 32 },
-      { header: 'RUT', key: 'rut', width: 15 },
-      { header: 'Fecha Solicitud', key: 'fecha_solicitud', width: 18 },
-      { header: 'Fecha Inicio', key: 'fecha_inicio', width: 15 },
-      { header: 'Fecha Fin', key: 'fecha_fin', width: 15 },
-      { header: 'Días', key: 'dias', width: 10 },
-      { header: 'Jornada', key: 'tipo_jornada', width: 15 },
-      { header: 'Estado', key: 'estado', width: 15 },
-      { header: 'Motivo', key: 'motivo', width: 40 },
+      { key: 'id', width: 6 },
+      { key: 'funcionario', width: 32 },
+      { key: 'rut', width: 15 },
+      { key: 'fecha_solicitud', width: 18 },
+      { key: 'fecha_inicio', width: 15 },
+      { key: 'fecha_fin', width: 15 },
+      { key: 'dias', width: 10 },
+      { key: 'tipo_jornada', width: 15 },
+      { key: 'estado', width: 15 },
+      { key: 'motivo', width: 40 },
     ];
     permisos.forEach((p) => sheet.addRow({
       id: p.id,
@@ -193,8 +256,7 @@ export const reporteService = {
       estado: p.estado,
       motivo: p.motivo,
     }));
-    sheet.getRow(1).font = { bold: true, size: 14 };
-    sheet.getRow(4).font = { bold: true };
+    sheet.getRow(5).font = { bold: true };
     return Buffer.from(await workbook.xlsx.writeBuffer());
   },
 
@@ -206,6 +268,9 @@ export const reporteService = {
       doc.on('data', (chunk: Buffer) => buffers.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
+
+      const logoBottom = drawLogo(doc);
+      if (logoBottom > 0) doc.y = logoBottom + 8;
 
       doc.fontSize(20).text('Reporte de Permisos Administrativos', { align: 'center' });
       doc.moveDown();
@@ -233,16 +298,23 @@ export const reporteService = {
   async generarExcel(permisos: any[], usuario: { nombres: string; apellido_paterno: string; rut: string }): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Permisos');
-
+    sheet.mergeCells('C1:H2');
+    const titleCell = sheet.getCell('C1');
+    titleCell.value = 'Reporte de Permisos Administrativos';
+    titleCell.font = { bold: true, size: 14 };
+    sheet.mergeCells('C3:H3');
+    sheet.getCell('C3').value = `Trabajador: ${usuario.nombres} ${usuario.apellido_paterno} | RUT: ${usuario.rut} | Año: ${new Date().getFullYear()}`;
+    sheet.addRow([]);
+    sheet.addRow(['#', 'Fecha Solicitud', 'Fecha Inicio', 'Fecha Fin', 'Tipo Jornada', 'Estado', 'Motivo', 'Motivo Rechazo']);
     sheet.columns = [
-      { header: '#', key: 'id', width: 5 },
-      { header: 'Fecha Solicitud', key: 'fecha_solicitud', width: 18 },
-      { header: 'Fecha Inicio', key: 'fecha_inicio', width: 15 },
-      { header: 'Fecha Fin', key: 'fecha_fin', width: 15 },
-      { header: 'Tipo Jornada', key: 'tipo_jornada', width: 15 },
-      { header: 'Estado', key: 'estado', width: 15 },
-      { header: 'Motivo', key: 'motivo', width: 40 },
-      { header: 'Motivo Rechazo', key: 'motivo_rechazo', width: 40 },
+      { key: 'id', width: 5 },
+      { key: 'fecha_solicitud', width: 18 },
+      { key: 'fecha_inicio', width: 15 },
+      { key: 'fecha_fin', width: 15 },
+      { key: 'tipo_jornada', width: 15 },
+      { key: 'estado', width: 15 },
+      { key: 'motivo', width: 40 },
+      { key: 'motivo_rechazo', width: 40 },
     ];
 
     permisos.forEach((p) => {
@@ -258,7 +330,7 @@ export const reporteService = {
       });
     });
 
-    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(5).font = { bold: true };
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);

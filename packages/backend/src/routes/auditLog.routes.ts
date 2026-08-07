@@ -7,6 +7,6 @@ const router = Router();
 
 router.use(authenticate);
 
-router.get('/', authorize('audit_log', 'view'), auditLogController.list);
+router.post('/', authorize('audit_log', 'view'), auditLogController.list);
 
 export default router;

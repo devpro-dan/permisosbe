@@ -4,7 +4,7 @@ import { auditLogService } from '../services/auditLog.service';
 export const auditLogController = {
   async list(req: Request, res: Response) {
     try {
-      const { limit, offset, entidad, accion, user_id, desde, hasta } = req.query;
+      const { limit, offset, entidad, accion, user_id, desde, hasta } = req.body;
       const result = await auditLogService.list({
         limit: limit ? parseInt(limit as string, 10) : undefined,
         offset: offset ? parseInt(offset as string, 10) : undefined,

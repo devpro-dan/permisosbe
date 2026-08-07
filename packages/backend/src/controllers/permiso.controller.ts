@@ -38,6 +38,17 @@ function isWeekend(dateStr: string): boolean {
   return day === 0 || day === 6;
 }
 
+function getReportFilters(body: any) {
+  const b = body || {};
+  return {
+    employee: (b.employee as string) || undefined,
+    startDate: (b.startDate as string) || undefined,
+    endDate: (b.endDate as string) || undefined,
+    year: b.year ? parseInt(String(b.year), 10) : undefined,
+    cargo: (b.cargo as string) || undefined,
+  };
+}
+
 export const permisoController = {
   async misPermisos(req: Request, res: Response) {
     try {
@@ -389,7 +400,7 @@ export const permisoController = {
   async reportePDF(req: Request, res: Response) {
     try {
       const userId = req.user!.userId;
-      const year = parseInt((req.query.year as string) || String(new Date().getFullYear()));
+      const year = parseInt((req.body.year as string) || String(new Date().getFullYear()));
       const permisos = await permisoService.getYearlyPermisos(userId, year);
 
       const { userRepository } = require('../repositories/user.repository');
@@ -411,7 +422,7 @@ export const permisoController = {
   async reporteExcel(req: Request, res: Response) {
     try {
       const userId = req.user!.userId;
-      const year = parseInt((req.query.year as string) || String(new Date().getFullYear()));
+      const year = parseInt((req.body.year as string) || String(new Date().getFullYear()));
       const permisos = await permisoService.getYearlyPermisos(userId, year);
 
       const { userRepository } = require('../repositories/user.repository');
@@ -432,12 +443,7 @@ export const permisoController = {
 
   async reporteGeneralPDF(req: Request, res: Response) {
     try {
-      const filters = {
-        employee: (req.query.employee as string) || undefined,
-        startDate: (req.query.startDate as string) || undefined,
-        endDate: (req.query.endDate as string) || undefined,
-        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
-      };
+      const filters = getReportFilters(req.body);
       const permisos = await permisoService.findForReport(filters);
       const { reporteService } = require('../services/reporte.service');
       const pdfBuffer = await reporteService.generarReporteGeneralPDF(permisos, filters);
@@ -452,12 +458,7 @@ export const permisoController = {
 
   async reporteGeneralExcel(req: Request, res: Response) {
     try {
-      const filters = {
-        employee: (req.query.employee as string) || undefined,
-        startDate: (req.query.startDate as string) || undefined,
-        endDate: (req.query.endDate as string) || undefined,
-        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
-      };
+      const filters = getReportFilters(req.body);
       const permisos = await permisoService.findForReport(filters);
       const { reporteService } = require('../services/reporte.service');
       const excelBuffer = await reporteService.generarReporteGeneralExcel(permisos, filters);
@@ -472,12 +473,7 @@ export const permisoController = {
 
   async reporteResumenTrabajadores(req: Request, res: Response) {
     try {
-      const filters = {
-        employee: (req.query.employee as string) || undefined,
-        startDate: (req.query.startDate as string) || undefined,
-        endDate: (req.query.endDate as string) || undefined,
-        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
-      };
+      const filters = getReportFilters(req.body);
       const resumen = await permisoService.getResumenTrabajadores(filters);
       res.json(resumen);
     } catch (error) {
@@ -487,12 +483,7 @@ export const permisoController = {
 
   async reporteResumenTrabajadoresPDF(req: Request, res: Response) {
     try {
-      const filters = {
-        employee: (req.query.employee as string) || undefined,
-        startDate: (req.query.startDate as string) || undefined,
-        endDate: (req.query.endDate as string) || undefined,
-        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
-      };
+      const filters = getReportFilters(req.body);
       const resumen = await permisoService.getResumenTrabajadores(filters);
       const { reporteService } = require('../services/reporte.service');
       const pdfBuffer = await reporteService.generarReporteTrabajadoresPDF(resumen.trabajadores, resumen.maxDias, filters);
@@ -505,14 +496,24 @@ export const permisoController = {
     }
   },
 
+  async reporteResumenTrabajadoresExcel(req: Request, res: Response) {
+    try {
+      const filters = getReportFilters(req.body);
+      const resumen = await permisoService.getResumenTrabajadores(filters);
+      const { reporteService } = require('../services/reporte.service');
+      const excelBuffer = await reporteService.generarReporteTrabajadoresExcel(resumen.trabajadores, resumen.maxDias, filters);
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=reporte_dias_por_trabajador.xlsx');
+      res.send(excelBuffer);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al generar reporte de días por trabajador' });
+    }
+  },
+
   async reporteConsulta(req: Request, res: Response) {
     try {
-      const filters = {
-        employee: (req.query.employee as string) || undefined,
-        startDate: (req.query.startDate as string) || undefined,
-        endDate: (req.query.endDate as string) || undefined,
-        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
-      };
+      const filters = getReportFilters(req.body);
       const permisos = await permisoService.findForReport(filters);
       res.json(permisos);
     } catch (error) {
