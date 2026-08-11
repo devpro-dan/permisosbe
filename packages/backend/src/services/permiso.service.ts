@@ -59,13 +59,14 @@ export const permisoService = {
     return result.rows.map(addComprobanteStatus);
   },
 
-  async checkOverlap(userId: number, fechaInicio: string, fechaFin?: string): Promise<boolean> {
+  async checkOverlap(userId: number, fechaInicio: string, fechaFin?: string, excludeId?: number): Promise<boolean> {
     const result = await pool.query(
       `SELECT id FROM permisos_administrativos
        WHERE user_id = $1 AND estado != 'rechazado'
          AND fecha_inicio <= $3 AND COALESCE(fecha_fin, fecha_inicio) >= $2
+         AND ($4::int IS NULL OR id != $4)
        LIMIT 1`,
-      [userId, fechaInicio, fechaFin || fechaInicio]
+      [userId, fechaInicio, fechaFin || fechaInicio, excludeId || null]
     );
     return result.rows.length > 0;
   },

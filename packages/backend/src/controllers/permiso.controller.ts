@@ -268,18 +268,32 @@ export const permisoController = {
         return;
       }
 
-      if (req.user!.rolId !== 1) {
-        if (permiso.estado === 'aprobado') {
-          res.status(400).json({ message: 'No se puede editar un permiso aprobado' });
-          return;
-        }
-        if (new Date(permiso.fecha_inicio) < new Date()) {
-          res.status(400).json({ message: 'No se puede editar un permiso con fecha anterior a hoy' });
-          return;
-        }
+      if (permiso.estado !== 'en_revision') {
+        res.status(400).json({ message: 'Solo se pueden editar permisos en estado En Revisión' });
+        return;
       }
 
-      const updated = await permisoService.update(id, req.body);
+      const { fecha_inicio, fecha_fin, tipo_jornada, motivo } = req.body;
+
+      if (fecha_inicio !== undefined && isWeekend(fecha_inicio)) {
+        res.status(400).json({ message: 'La fecha de inicio no puede ser fin de semana' });
+        return;
+      }
+
+      if (tipo_jornada !== undefined && !['completa', 'media'].includes(tipo_jornada)) {
+        res.status(400).json({ message: 'Tipo jornada debe ser completa o media' });
+        return;
+      }
+
+      const nuevaFechaInicio = fecha_inicio !== undefined ? fecha_inicio : permiso.fecha_inicio;
+      const nuevaFechaFin = fecha_fin !== undefined ? fecha_fin : permiso.fecha_fin;
+      const overlap = await permisoService.checkOverlap(permiso.user_id, nuevaFechaInicio, nuevaFechaFin, id);
+      if (overlap) {
+        res.status(400).json({ message: 'El trabajador ya tiene un permiso registrado que se cruza con estas fechas' });
+        return;
+      }
+
+      const updated = await permisoService.update(id, { fecha_inicio, fecha_fin, tipo_jornada, motivo });
       await auditLogService.register(req, 'update', 'permiso', id, `Editó permiso #${id}`);
       res.json(updated);
     } catch (error) {

@@ -6,9 +6,10 @@ interface DataTableProps {
   data: any[];
   onEdit?: (row: any) => void;
   onDelete?: (row: any) => void;
+  canEdit?: (row: any) => boolean;
 }
 
-export function DataTable({ columns, data, onEdit, onDelete }: DataTableProps) {
+export function DataTable({ columns, data, onEdit, onDelete, canEdit }: DataTableProps) {
   if (data.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500 bg-white rounded-lg shadow">
@@ -44,7 +45,7 @@ export function DataTable({ columns, data, onEdit, onDelete }: DataTableProps) {
               ))}
               {(onEdit || onDelete) && (
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-3">
-                  {onEdit && (
+                  {onEdit && (!canEdit || canEdit(row)) && (
                     <button onClick={() => onEdit(row)} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800">
                       <Pencil className="w-3.5 h-3.5" /> Editar
                     </button>

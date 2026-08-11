@@ -7,8 +7,9 @@ import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Modal } from '../components/Modal';
 import { toast } from '../components/Toast';
-import { CheckCircle, XCircle, Trash2, FileText, Search, Calendar, X, Upload } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, FileText, Search, Calendar, X, Upload, Pencil } from 'lucide-react';
 import { formatDate } from '../utils/format';
+import { isWeekend, addBusinessDays } from '../utils/dates';
 
 const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, tipoJornada: string): number => {
   const inicio = new Date(fechaInicio);
@@ -18,6 +19,18 @@ const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, 
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   
   return tipoJornada === 'media' ? diffDays * 0.5 : diffDays;
+};
+
+const countBusinessDays = (inicio: string, fin: string): number => {
+  const d1 = new Date(inicio + 'T12:00:00');
+  const d2 = new Date(fin + 'T12:00:00');
+  let count = 0;
+  const cur = new Date(d1);
+  while (cur <= d2) {
+    if (cur.getDay() !== 0 && cur.getDay() !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
 };
 
 export default function GestionPermisos() {
@@ -31,6 +44,13 @@ export default function GestionPermisos() {
   const [fechaFin, setFechaFin] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingId, setUploadingId] = useState<number | null>(null);
+
+  const [editModal, setEditModal] = useState<{ permiso: Permiso | null; open: boolean }>({ permiso: null, open: false });
+  const [editFechaInicio, setEditFechaInicio] = useState('');
+  const [editCantidadDias, setEditCantidadDias] = useState(1);
+  const [editTipoJornada, setEditTipoJornada] = useState<'completa' | 'media'>('completa');
+  const [editMotivo, setEditMotivo] = useState('');
+  const [editError, setEditError] = useState('');
 
   const puedeEditar = user?.rolId === 1 || user?.rolId === 2;
 
@@ -148,6 +168,47 @@ export default function GestionPermisos() {
       load();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al eliminar');
+    }
+  };
+
+  const editFechaFin = useMemo(
+    () => editFechaInicio ? addBusinessDays(editFechaInicio, editCantidadDias - 1) : '',
+    [editFechaInicio, editCantidadDias]
+  );
+
+  const handleEditOpen = (p: Permiso) => {
+    const fin = p.fecha_fin || p.fecha_inicio;
+    setEditFechaInicio(p.fecha_inicio);
+    setEditCantidadDias(countBusinessDays(p.fecha_inicio, fin));
+    setEditTipoJornada(p.tipo_jornada);
+    setEditMotivo(p.motivo);
+    setEditError('');
+    setEditModal({ permiso: p, open: true });
+  };
+
+  const handleEditSave = async () => {
+    if (!editModal.permiso) return;
+    if (isWeekend(editFechaInicio)) {
+      setEditError('La fecha de inicio no puede ser fin de semana');
+      return;
+    }
+    if (editCantidadDias < 1) {
+      setEditError('La cantidad de días debe ser al menos 1');
+      return;
+    }
+    setEditError('');
+    try {
+      await permisoApi.update(editModal.permiso.id, {
+        fecha_inicio: editFechaInicio,
+        fecha_fin: editFechaFin,
+        tipo_jornada: editCantidadDias > 1 ? 'completa' : editTipoJornada,
+        motivo: editMotivo,
+      });
+      toast({ message: 'Permiso actualizado correctamente', type: 'success' });
+      setEditModal({ permiso: null, open: false });
+      load();
+    } catch (err: any) {
+      setEditError(err.response?.data?.message || 'Error al editar permiso');
     }
   };
 
@@ -288,6 +349,8 @@ export default function GestionPermisos() {
       <DataTable
         columns={columns}
         data={permisosFiltrados}
+        onEdit={handleEditOpen}
+        canEdit={(row) => row.estado === 'en_revision'}
         onDelete={(row) => handleDelete(row.id)}
       />
 
@@ -306,6 +369,9 @@ export default function GestionPermisos() {
           <p className="text-sm text-gray-600">{p.motivo}</p>
           {p.estado === 'en_revision' && (
             <div className="flex gap-2 mt-2">
+              <button onClick={() => handleEditOpen(p)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+                <Pencil className="w-3.5 h-3.5" /> Editar
+              </button>
               <button onClick={() => handleAprobar(p.id)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-success-600 text-white rounded-lg hover:bg-success-700">
                 <CheckCircle className="w-3.5 h-3.5" /> Aprobar
               </button>
@@ -390,6 +456,89 @@ export default function GestionPermisos() {
           </div>
           <button onClick={handleRechazar} className="flex items-center justify-center gap-2 w-full py-2 bg-danger-600 hover:bg-danger-700 text-white rounded-lg">
             <XCircle className="w-4 h-4" /> Rechazar Permiso
+          </button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={editModal.open} onClose={() => setEditModal({ permiso: null, open: false })} title="Editar Permiso">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Trabajador</label>
+            <div className="px-4 py-2 border rounded-lg bg-gray-50 text-sm text-gray-700">
+              {editModal.permiso?.nombres} {editModal.permiso?.apellido_paterno}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+            <input
+              type="date"
+              value={editFechaInicio}
+              onChange={(e) => { setEditFechaInicio(e.target.value); setEditError(''); }}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${isWeekend(editFechaInicio) ? 'border-red-500' : ''}`}
+              required
+            />
+            {isWeekend(editFechaInicio) && <p className="text-red-500 text-xs mt-1">La fecha de inicio no puede ser fin de semana</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad de Días</label>
+            <input
+              type="number"
+              min={1}
+              max={6}
+              value={editCantidadDias}
+              onChange={(e) => setEditCantidadDias(Math.min(6, Math.max(1, parseInt(e.target.value) || 1)))}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+            <input
+              type="date"
+              value={editFechaFin}
+              readOnly
+              className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+            />
+          </div>
+
+          {editCantidadDias === 1 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Jornada</label>
+              <select
+                value={editTipoJornada}
+                onChange={(e) => setEditTipoJornada(e.target.value as 'completa' | 'media')}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="completa">Jornada Completa</option>
+                <option value="media">Media Jornada</option>
+              </select>
+            </div>
+          )}
+
+          {editCantidadDias > 1 && (
+            <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm">
+              Para permisos de múltiples días, la jornada será completa.
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
+            <textarea
+              value={editMotivo}
+              onChange={(e) => setEditMotivo(e.target.value)}
+              rows={4}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              required
+            />
+          </div>
+
+          {editError && <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm">{editError}</div>}
+
+          <button onClick={handleEditSave} className="flex items-center justify-center gap-2 w-full py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
+            <Pencil className="w-4 h-4" /> Guardar Cambios
           </button>
         </div>
       </Modal>
