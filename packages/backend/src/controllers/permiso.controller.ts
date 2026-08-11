@@ -149,14 +149,22 @@ export const permisoController = {
         return;
       }
 
-      const { userRepository } = require('../repositories/user.repository');
-      const user = await userRepository.findById(permiso.user_id);
-      if (user?.email) {
-        const restantes = await permisoService.getAvailablePermisos(permiso.user_id);
-        await emailService.sendPermisoNotification(user.email, 'aprobado', permiso, user.nombres, { available: restantes.available, max: restantes.max });
+      try {
+        const { userRepository } = require('../repositories/user.repository');
+        const user = await userRepository.findById(permiso.user_id);
+        if (user?.email) {
+          const restantes = await permisoService.getAvailablePermisos(permiso.user_id);
+          await emailService.sendPermisoNotification(user.email, 'aprobado', permiso, user.nombres, { available: restantes.available, max: restantes.max });
+        }
+      } catch (emailError) {
+        console.error('Error enviando notificación al aprobar permiso:', emailError);
       }
 
-      await auditLogService.register(req, 'approve', 'permiso', id, `Aprobó permiso #${id}`);
+      try {
+        await auditLogService.register(req, 'approve', 'permiso', id, `Aprobó permiso #${id}`);
+      } catch (auditError) {
+        console.error('Error registrando auditoría al aprobar permiso:', auditError);
+      }
 
       res.json(permiso);
     } catch (error) {
@@ -180,14 +188,22 @@ export const permisoController = {
         return;
       }
 
-      const { userRepository } = require('../repositories/user.repository');
-      const user = await userRepository.findById(permiso.user_id);
-      if (user?.email) {
-        const restantes = await permisoService.getAvailablePermisos(permiso.user_id);
-        await emailService.sendPermisoNotification(user.email, 'rechazado', { ...permiso, motivo_rechazo }, user.nombres, { available: restantes.available, max: restantes.max });
+      try {
+        const { userRepository } = require('../repositories/user.repository');
+        const user = await userRepository.findById(permiso.user_id);
+        if (user?.email) {
+          const restantes = await permisoService.getAvailablePermisos(permiso.user_id);
+          await emailService.sendPermisoNotification(user.email, 'rechazado', { ...permiso, motivo_rechazo }, user.nombres, { available: restantes.available, max: restantes.max });
+        }
+      } catch (emailError) {
+        console.error('Error enviando notificación al rechazar permiso:', emailError);
       }
 
-      await auditLogService.register(req, 'reject', 'permiso', id, `Rechazó permiso #${id}: ${motivo_rechazo}`);
+      try {
+        await auditLogService.register(req, 'reject', 'permiso', id, `Rechazó permiso #${id}: ${motivo_rechazo}`);
+      } catch (auditError) {
+        console.error('Error registrando auditoría al rechazar permiso:', auditError);
+      }
 
       res.json(permiso);
     } catch (error) {
@@ -294,7 +310,11 @@ export const permisoController = {
       }
 
       const updated = await permisoService.update(id, { fecha_inicio, fecha_fin, tipo_jornada, motivo });
-      await auditLogService.register(req, 'update', 'permiso', id, `Editó permiso #${id}`);
+      try {
+        await auditLogService.register(req, 'update', 'permiso', id, `Editó permiso #${id}`);
+      } catch (auditError) {
+        console.error('Error registrando auditoría al editar permiso:', auditError);
+      }
       res.json(updated);
     } catch (error) {
       res.status(500).json({ message: 'Error al editar permiso' });
@@ -323,7 +343,11 @@ export const permisoController = {
       }
 
       await permisoService.delete(id);
-      await auditLogService.register(req, 'delete', 'permiso', id, `Eliminó permiso #${id}`);
+      try {
+        await auditLogService.register(req, 'delete', 'permiso', id, `Eliminó permiso #${id}`);
+      } catch (auditError) {
+        console.error('Error registrando auditoría al eliminar permiso:', auditError);
+      }
       res.json({ message: 'Permiso eliminado' });
     } catch (error) {
       res.status(500).json({ message: 'Error al eliminar permiso' });
