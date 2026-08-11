@@ -16,6 +16,7 @@ import Sesiones from './pages/Sesiones';
 import NotFound from './pages/NotFound';
 import Reportes from './pages/Reportes';
 import AuditLog from './pages/AuditLog';
+import Feriados from './pages/Feriados';
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="/configuracion" element={<ProtectedRoute allowedRoles={[1]}><Configuracion /></ProtectedRoute>} />
             <Route path="/sesiones" element={<ProtectedRoute allowedRoles={[1]}><Sesiones /></ProtectedRoute>} />
             <Route path="/auditoria" element={<ProtectedRoute permission="audit_log"><AuditLog /></ProtectedRoute>} />
+            <Route path="/feriados" element={<ProtectedRoute permission="feriados"><Feriados /></ProtectedRoute>} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

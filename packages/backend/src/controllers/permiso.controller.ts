@@ -38,6 +38,20 @@ function isWeekend(dateStr: string): boolean {
   return day === 0 || day === 6;
 }
 
+function fmtFecha(fecha: string): string {
+  const [y, m, d] = fecha.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+async function feriadosEnRango(inicio: string, fin?: string): Promise<{ fecha: string; descripcion: string }[]> {
+  const { feriadoRepository } = require('../repositories/feriado.repository');
+  return feriadoRepository.findEntre(inicio, fin || inicio);
+}
+
+function mensajeFeriado(feriado: { fecha: string; descripcion: string }): string {
+  return `La fecha ${fmtFecha(feriado.fecha)} corresponde a un feriado (${feriado.descripcion})`;
+}
+
 function getReportFilters(body: any) {
   const b = body || {};
   return {
@@ -78,6 +92,12 @@ export const permisoController = {
 
       if (isWeekend(fecha_inicio)) {
         res.status(400).json({ message: 'La fecha de inicio no puede ser fin de semana' });
+        return;
+      }
+
+      const feriados = await feriadosEnRango(fecha_inicio, fecha_fin);
+      if (feriados.length > 0) {
+        res.status(400).json({ message: mensajeFeriado(feriados[0]) });
         return;
       }
 
@@ -230,6 +250,12 @@ export const permisoController = {
         return;
       }
 
+      const feriados = await feriadosEnRango(fecha_inicio, fecha_fin);
+      if (feriados.length > 0) {
+        res.status(400).json({ message: mensajeFeriado(feriados[0]) });
+        return;
+      }
+
       const { userRepository } = require('../repositories/user.repository');
       const targetUser = await userRepository.findById(user_id);
       if (!targetUser) {
@@ -303,6 +329,13 @@ export const permisoController = {
 
       const nuevaFechaInicio = fecha_inicio !== undefined ? fecha_inicio : permiso.fecha_inicio;
       const nuevaFechaFin = fecha_fin !== undefined ? fecha_fin : permiso.fecha_fin;
+
+      const feriados = await feriadosEnRango(nuevaFechaInicio, nuevaFechaFin);
+      if (feriados.length > 0) {
+        res.status(400).json({ message: mensajeFeriado(feriados[0]) });
+        return;
+      }
+
       const overlap = await permisoService.checkOverlap(permiso.user_id, nuevaFechaInicio, nuevaFechaFin, id);
       if (overlap) {
         res.status(400).json({ message: 'El trabajador ya tiene un permiso registrado que se cruza con estas fechas' });

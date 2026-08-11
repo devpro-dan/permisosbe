@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { permisoApi } from '../services/api';
+import { useState, useMemo, useEffect } from 'react';
+import { permisoApi, feriadoApi } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../components/Toast';
 import { Send } from 'lucide-react';
@@ -16,14 +16,25 @@ export default function SolicitarPermiso() {
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [feriados, setFeriados] = useState<string[]>([]);
 
-  const fechaFin = useMemo(() => addBusinessDays(fechaInicio, cantidadDias - 1), [fechaInicio, cantidadDias]);
+  const fechaFin = useMemo(() => addBusinessDays(fechaInicio, cantidadDias - 1, feriados), [fechaInicio, cantidadDias, feriados]);
+
+  useEffect(() => {
+    feriadoApi.list(new Date().getFullYear()).then((res) => {
+      setFeriados(res.data.map((f: any) => f.fecha));
+    }).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (isWeekend(fechaInicio)) {
       setError('La fecha de inicio no puede ser fin de semana');
+      return;
+    }
+    if (feriados.includes(fechaInicio)) {
+      setError('La fecha de inicio corresponde a un feriado y no es un día válido');
       return;
     }
     if (cantidadDias < 1 || cantidadDias > MAX_PERMISOS) {
@@ -59,10 +70,11 @@ export default function SolicitarPermiso() {
               type="date"
               value={fechaInicio}
               onChange={(e) => { setFechaInicio(e.target.value); setError(''); }}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${isWeekend(fechaInicio) ? 'border-red-500' : ''}`}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${(isWeekend(fechaInicio) || feriados.includes(fechaInicio)) ? 'border-red-500' : ''}`}
               required
             />
             {isWeekend(fechaInicio) && <p className="text-red-500 text-xs mt-1">La fecha de inicio no puede ser fin de semana</p>}
+            {!isWeekend(fechaInicio) && feriados.includes(fechaInicio) && <p className="text-red-500 text-xs mt-1">La fecha de inicio corresponde a un feriado</p>}
         </div>
 
         <div>

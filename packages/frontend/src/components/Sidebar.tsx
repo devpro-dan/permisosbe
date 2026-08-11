@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useState } from 'react';
-import { LayoutDashboard, ClipboardList, FilePlus, ClipboardCheck, Users, Shield, Settings, History, FileBarChart, UserPlus, ScrollText, Menu, X, LogOut } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, FilePlus, ClipboardCheck, Users, Shield, Settings, History, FileBarChart, UserPlus, ScrollText, CalendarDays, Menu, X, LogOut } from 'lucide-react';
 
 const iconMap: Record<string, React.ReactNode> = {
   Dashboard: <LayoutDashboard className="w-4 h-4" />,
@@ -15,6 +15,7 @@ const iconMap: Record<string, React.ReactNode> = {
   Sesiones: <History className="w-4 h-4" />,
   Reportes: <FileBarChart className="w-4 h-4" />,
   Auditoría: <ScrollText className="w-4 h-4" />,
+  Feriados: <CalendarDays className="w-4 h-4" />,
 };
 
 const navItems = [
@@ -28,6 +29,7 @@ const navItems = [
   { label: 'Roles', path: '/roles', roles: [1] },
   { label: 'Configuración', path: '/configuracion', roles: [1] },
   { label: 'Auditoría', path: '/auditoria', roles: [1, 2] },
+  { label: 'Feriados', path: '/feriados', roles: [1, 2] },
   { label: 'Sesiones', path: '/sesiones', roles: [1] },
 ];
 
@@ -42,6 +44,9 @@ export function Sidebar() {
     }
     if (item.path === '/auditoria') {
       return user.permissions?.some((permission) => permission.seccion === 'audit_log' && permission.can_view) ?? false;
+    }
+    if (item.path === '/feriados') {
+      return user.permissions?.some((permission) => permission.seccion === 'feriados' && permission.can_view) ?? false;
     }
     return true;
   });

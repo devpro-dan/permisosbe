@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { permisoApi } from '../services/api';
+import { permisoApi, feriadoApi } from '../services/api';
 import { Permiso } from '../types';
 import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
@@ -51,8 +51,15 @@ export default function GestionPermisos() {
   const [editTipoJornada, setEditTipoJornada] = useState<'completa' | 'media'>('completa');
   const [editMotivo, setEditMotivo] = useState('');
   const [editError, setEditError] = useState('');
+  const [feriados, setFeriados] = useState<string[]>([]);
 
   const puedeEditar = user?.rolId === 1 || user?.rolId === 2;
+
+  useEffect(() => {
+    feriadoApi.list(new Date().getFullYear()).then((res) => {
+      setFeriados(res.data.map((f: any) => f.fecha));
+    }).catch(() => {});
+  }, []);
 
   const load = () => {
     setLoading(true);
@@ -172,8 +179,8 @@ export default function GestionPermisos() {
   };
 
   const editFechaFin = useMemo(
-    () => editFechaInicio ? addBusinessDays(editFechaInicio, editCantidadDias - 1) : '',
-    [editFechaInicio, editCantidadDias]
+    () => editFechaInicio ? addBusinessDays(editFechaInicio, editCantidadDias - 1, feriados) : '',
+    [editFechaInicio, editCantidadDias, feriados]
   );
 
   const handleEditOpen = (p: Permiso) => {
@@ -190,6 +197,10 @@ export default function GestionPermisos() {
     if (!editModal.permiso) return;
     if (isWeekend(editFechaInicio)) {
       setEditError('La fecha de inicio no puede ser fin de semana');
+      return;
+    }
+    if (feriados.includes(editFechaInicio)) {
+      setEditError('La fecha de inicio corresponde a un feriado y no es un día válido');
       return;
     }
     if (editCantidadDias < 1) {
@@ -475,10 +486,11 @@ export default function GestionPermisos() {
               type="date"
               value={editFechaInicio}
               onChange={(e) => { setEditFechaInicio(e.target.value); setEditError(''); }}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${isWeekend(editFechaInicio) ? 'border-red-500' : ''}`}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${(isWeekend(editFechaInicio) || feriados.includes(editFechaInicio)) ? 'border-red-500' : ''}`}
               required
             />
             {isWeekend(editFechaInicio) && <p className="text-red-500 text-xs mt-1">La fecha de inicio no puede ser fin de semana</p>}
+            {!isWeekend(editFechaInicio) && feriados.includes(editFechaInicio) && <p className="text-red-500 text-xs mt-1">La fecha de inicio corresponde a un feriado</p>}
           </div>
 
           <div>

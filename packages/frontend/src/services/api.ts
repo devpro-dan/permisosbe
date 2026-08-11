@@ -114,6 +114,13 @@ export const permisoApi = {
   descargarComprobante: (id: number) => api.get(`/permisos/${id}/comprobante`, { responseType: 'blob' }),
 };
 
+export const feriadoApi = {
+  list: (year?: number) => api.get('/feriados', { params: year ? { year } : {} }),
+  create: (data: any) => api.post('/feriados', data),
+  update: (id: number, data: any) => api.put(`/feriados/${id}`, data),
+  delete: (id: number) => api.delete(`/feriados/${id}`),
+};
+
 export const configApi = {
   list: () => api.get('/config'),
   getByClave: (clave: string) => api.get(`/config/${clave}`),

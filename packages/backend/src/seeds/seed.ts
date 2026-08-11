@@ -3,7 +3,7 @@ import pool from '../config/database';
 
 const sections = [
   'usuarios', 'roles', 'permisos_administrativos',
-  'reportes', 'configuracion', 'sesiones', 'audit_log',
+  'reportes', 'configuracion', 'sesiones', 'audit_log', 'feriados',
 ];
 
 const defaultConfigs = [
@@ -35,10 +35,19 @@ async function seed() {
 
     const existingAdmin = await client.query('SELECT id FROM roles WHERE nombre = $1', ['admin']);
     if (existingAdmin.rows.length > 0) {
-      console.log('Roles ya existen. Insertando configuraciones faltantes...');
+      console.log('Roles ya existen. Insertando configuraciones y permisos faltantes...');
+      const adminRoleId = existingAdmin.rows[0].id;
+      for (const section of sections) {
+        await client.query(
+          `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete)
+           VALUES ($1, $2, true, true, true, true)
+           ON CONFLICT (rol_id, seccion) DO NOTHING`,
+          [adminRoleId, section]
+        );
+      }
       await insertConfigs(client);
       await client.query('COMMIT');
-      console.log('Configuraciones faltantes agregadas.');
+      console.log('Configuraciones y permisos faltantes agregados.');
       return;
     }
 
@@ -72,6 +81,7 @@ async function seed() {
       { seccion: 'usuarios', view: true, create: false, edit: false, delete: false },
       { seccion: 'permisos_administrativos', view: true, create: false, edit: true, delete: true },
       { seccion: 'reportes', view: true, create: false, edit: false, delete: false },
+      { seccion: 'feriados', view: true, create: false, edit: false, delete: false },
     ];
 
     for (const perm of jefaturaPermissions) {

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { permisoApi, userApi } from '../services/api';
+import { permisoApi, userApi, feriadoApi } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../components/Toast';
 import { Send, Search } from 'lucide-react';
@@ -11,6 +11,7 @@ export default function RegistrarPermiso() {
   const today = new Date().toISOString().split('T')[0];
 
   const [usuarios, setUsuarios] = useState<User[]>([]);
+  const [feriados, setFeriados] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<number | ''>('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -23,10 +24,13 @@ export default function RegistrarPermiso() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const fechaFin = useMemo(() => addBusinessDays(fechaInicio, cantidadDias - 1), [fechaInicio, cantidadDias]);
+  const fechaFin = useMemo(() => addBusinessDays(fechaInicio, cantidadDias - 1, feriados), [fechaInicio, cantidadDias, feriados]);
 
   useEffect(() => {
     userApi.list().then((res) => setUsuarios(res.data)).catch(() => {});
+    feriadoApi.list(new Date().getFullYear()).then((res) => {
+      setFeriados(res.data.map((f: any) => f.fecha));
+    }).catch(() => {});
   }, []);
 
   const filteredUsuarios = usuarios.filter((u) => {
@@ -47,6 +51,10 @@ export default function RegistrarPermiso() {
     setError('');
     if (isWeekend(fechaInicio)) {
       setError('La fecha de inicio no puede ser fin de semana');
+      return;
+    }
+    if (feriados.includes(fechaInicio)) {
+      setError('La fecha de inicio corresponde a un feriado y no es un día válido');
       return;
     }
     if (cantidadDias < 1 || cantidadDias > MAX_PERMISOS) {
@@ -133,10 +141,11 @@ export default function RegistrarPermiso() {
               type="date"
               value={fechaInicio}
               onChange={(e) => { setFechaInicio(e.target.value); setError(''); }}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${isWeekend(fechaInicio) ? 'border-red-500' : ''}`}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${(isWeekend(fechaInicio) || feriados.includes(fechaInicio)) ? 'border-red-500' : ''}`}
               required
             />
             {isWeekend(fechaInicio) && <p className="text-red-500 text-xs mt-1">La fecha de inicio no puede ser fin de semana</p>}
+            {!isWeekend(fechaInicio) && feriados.includes(fechaInicio) && <p className="text-red-500 text-xs mt-1">La fecha de inicio corresponde a un feriado</p>}
         </div>
 
         <div>
