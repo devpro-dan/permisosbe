@@ -97,14 +97,22 @@ export const permisoController = {
         user_id: userId, fecha_inicio, fecha_fin, tipo_jornada, motivo,
       });
 
-      const { userRepository } = require('../repositories/user.repository');
-      const user = await userRepository.findById(userId);
-      if (user?.email) {
-        const restantes = await permisoService.getAvailablePermisos(userId);
-        await emailService.sendPermisoNotification(user.email, 'solicitado', permiso, user.nombres, { available: restantes.available, max: restantes.max });
+      try {
+        const { userRepository } = require('../repositories/user.repository');
+        const user = await userRepository.findById(userId);
+        if (user?.email) {
+          const restantes = await permisoService.getAvailablePermisos(userId);
+          await emailService.sendPermisoNotification(user.email, 'solicitado', permiso, user.nombres, { available: restantes.available, max: restantes.max });
+        }
+      } catch (emailError) {
+        console.error('Error enviando notificación al solicitar permiso:', emailError);
       }
 
-      await auditLogService.register(req, 'create', 'permiso', permiso.id, `Solicitó permiso: ${motivo} (${fecha_inicio}${fecha_fin ? ` - ${fecha_fin}` : ''})`);
+      try {
+        await auditLogService.register(req, 'create', 'permiso', permiso.id, `Solicitó permiso: ${motivo} (${fecha_inicio}${fecha_fin ? ` - ${fecha_fin}` : ''})`);
+      } catch (auditError) {
+        console.error('Error registrando auditoría al solicitar permiso:', auditError);
+      }
 
       res.status(201).json(permiso);
     } catch (error) {
@@ -229,12 +237,20 @@ export const permisoController = {
         user_id, fecha_inicio, fecha_fin, tipo_jornada, motivo,
       });
 
-      if (targetUser.email) {
-        const restantes = await permisoService.getAvailablePermisos(user_id);
-        await emailService.sendPermisoNotification(targetUser.email, 'solicitado', permiso, targetUser.nombres, { available: restantes.available, max: restantes.max });
+      try {
+        if (targetUser.email) {
+          const restantes = await permisoService.getAvailablePermisos(user_id);
+          await emailService.sendPermisoNotification(targetUser.email, 'solicitado', permiso, targetUser.nombres, { available: restantes.available, max: restantes.max });
+        }
+      } catch (emailError) {
+        console.error('Error enviando notificación al registrar permiso para usuario:', emailError);
       }
 
-      await auditLogService.register(req, 'create_for_user', 'permiso', permiso.id, `Registró permiso para usuario #${user_id}: ${motivo}`);
+      try {
+        await auditLogService.register(req, 'create_for_user', 'permiso', permiso.id, `Registró permiso para usuario #${user_id}: ${motivo}`);
+      } catch (auditError) {
+        console.error('Error registrando auditoría al crear permiso para usuario:', auditError);
+      }
 
       res.status(201).json(permiso);
     } catch (error) {

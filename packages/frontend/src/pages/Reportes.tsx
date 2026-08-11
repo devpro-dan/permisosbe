@@ -207,6 +207,7 @@ export default function Reportes() {
     setEndDate('');
     setData([]);
     setSearched(false);
+    setResumen([]);
   };
 
   const columns = [
