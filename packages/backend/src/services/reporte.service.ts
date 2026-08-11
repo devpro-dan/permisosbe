@@ -22,6 +22,26 @@ function fmtDate(v: string): string {
   return `${d}/${m}/${y}`;
 }
 
+function formatDateTime(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function drawReportFooter(doc: PDFKit.PDFDocument, margin: number, generated: string) {
+  const px = doc.x, py = doc.y;
+  const y = doc.page.height - doc.page.margins.bottom - 14;
+  doc.font('Helvetica').fontSize(8).fillColor('#888888')
+    .text(`Reporte generado el ${generated}`, margin, y, { align: 'center', width: doc.page.width - margin * 2, lineBreak: false });
+  doc.x = px;
+  doc.y = py;
+}
+
+function addReportFooter(doc: PDFKit.PDFDocument, margin: number) {
+  const generated = formatDateTime(new Date());
+  doc.on('pageAdded', () => drawReportFooter(doc, margin, generated));
+  drawReportFooter(doc, margin, generated);
+}
+
 function calcularDias(inicio: string, fin: string | undefined | null): number {
   if (!fin || fin === inicio) return 1;
   const d1 = new Date(inicio + 'T12:00:00');
@@ -102,6 +122,8 @@ export const reporteService = {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
 
+      addReportFooter(doc, 45);
+
       const logoBottom = drawLogo(doc);
       if (logoBottom > 0) doc.y = logoBottom + 8;
 
@@ -145,6 +167,8 @@ export const reporteService = {
       doc.on('data', (chunk: Buffer) => buffers.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
+
+      addReportFooter(doc, 45);
 
       const logoBottom = drawLogo(doc);
       if (logoBottom > 0) doc.y = logoBottom + 8;
@@ -268,6 +292,8 @@ export const reporteService = {
       doc.on('data', (chunk: Buffer) => buffers.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
+
+      addReportFooter(doc, 50);
 
       const logoBottom = drawLogo(doc);
       if (logoBottom > 0) doc.y = logoBottom + 8;
