@@ -135,7 +135,9 @@ export default function MisPermisos() {
             <FileText className="w-3.5 h-3.5" /> Ver
           </button>
           ) : row.estado === 'aprobado' && !row.comprobante_disponible ? (
-          <span className="text-xs text-gray-400">Sin comprobante</span>
+          <span className={`text-xs ${row.comprobante_url ? 'text-red-500' : 'text-gray-400'}`}>
+            {row.comprobante_url ? 'No disponible' : 'Sin comprobante'}
+          </span>
         ) : null,
     },
   ];

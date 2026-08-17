@@ -229,6 +229,36 @@ export default function GestionPermisos() {
     setFechaFin('');
   };
 
+  const renderComprobanteActions = (row: Permiso) => {
+    if (row.estado !== 'aprobado') return null;
+    if (row.comprobante_disponible) {
+      return (
+        <div className="flex gap-2">
+          <button onClick={() => handleDescargarComprobante(row.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
+            <FileText className="w-3.5 h-3.5" /> Ver
+          </button>
+          {puedeEditar && (
+            <button onClick={() => handleUploadClick(row.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
+              <Upload className="w-3.5 h-3.5" /> Cambiar
+            </button>
+          )}
+        </div>
+      );
+    }
+    if (puedeEditar) {
+      return (
+        <button onClick={() => handleUploadClick(row.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
+          <Upload className="w-3.5 h-3.5" /> {row.comprobante_url ? 'Reintentar' : 'Cargar'}
+        </button>
+      );
+    }
+    return (
+      <span className="text-xs text-red-500">
+        {row.comprobante_url ? 'Comprobante no disponible' : 'Sin comprobante'}
+      </span>
+    );
+  };
+
   const estadoBadge = (estado: string) => {
     const colors: Record<string, string> = {
       en_revision: 'bg-warning-100 text-warning-800',
@@ -273,25 +303,7 @@ export default function GestionPermisos() {
         ) : null,
     },
     {
-      key: 'comprobante', label: 'Comprobante', render: (_: any, row: Permiso) =>
-        row.estado === 'aprobado' && row.comprobante_disponible ? (
-          <div className="flex gap-2">
-            <button onClick={() => handleDescargarComprobante(row.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
-              <FileText className="w-3.5 h-3.5" /> Ver
-            </button>
-            {puedeEditar && (
-              <button onClick={() => handleUploadClick(row.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
-                <Upload className="w-3.5 h-3.5" /> Cambiar
-              </button>
-            )}
-          </div>
-        ) : row.estado === 'aprobado' && !row.comprobante_url && puedeEditar ? (
-          <button onClick={() => handleUploadClick(row.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
-            <Upload className="w-3.5 h-3.5" /> Cargar
-          </button>
-        ) : row.estado === 'aprobado' && row.comprobante_url ? (
-          <span className="text-xs text-red-500">No disponible</span>
-        ) : null,
+      key: 'comprobante', label: 'Comprobante', render: (_: any, row: Permiso) => renderComprobanteActions(row),
     },
   ];
 
@@ -396,24 +408,7 @@ export default function GestionPermisos() {
               <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
                 <FileText className="w-3.5 h-3.5" /> Certificado
               </button>
-              {p.comprobante_disponible ? (
-                <>
-                  <button onClick={() => handleDescargarComprobante(p.id)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800">
-                    <FileText className="w-3.5 h-3.5" /> Comprobante
-                  </button>
-                  {puedeEditar && (
-                    <button onClick={() => handleUploadClick(p.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
-                      <Upload className="w-3.5 h-3.5" /> Cambiar
-                    </button>
-                  )}
-                </>
-              ) : !p.comprobante_url && puedeEditar ? (
-                <button onClick={() => handleUploadClick(p.id)} className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-800">
-                  <Upload className="w-3.5 h-3.5" /> Cargar Comp.
-                </button>
-              ) : p.comprobante_url ? (
-                <span className="text-xs text-red-500">Comprobante no disponible</span>
-              ) : null}
+              {renderComprobanteActions(p)}
             </div>
           )}
         </MobileCard>
