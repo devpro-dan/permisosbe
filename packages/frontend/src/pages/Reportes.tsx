@@ -21,11 +21,9 @@ const currentYear = new Date().getFullYear();
 const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
 const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, tipoJornada: string): number => {
-  const inicio = new Date(fechaInicio);
-  const fin = fechaFin ? new Date(fechaFin) : new Date(fechaInicio);
-  const diffTime = Math.abs(fin.getTime() - inicio.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  return tipoJornada === 'media' ? diffDays * 0.5 : diffDays;
+  const d1 = new Date(fechaInicio + "T12:00:00");
+  const d2 = new Date((fechaFin || fechaInicio) + "T12:00:00");
+  let count = 0; const cur = new Date(d1); while (cur <= d2) { if (cur.getDay()!==0 && cur.getDay()!==6) count++; cur.setDate(cur.getDate()+1); } if(count===0) count=1; return tipoJornada === "media" ? count*0.5 : count;
 };
 
 const estadoBadge = (estado: string) => {

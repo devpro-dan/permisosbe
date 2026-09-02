@@ -7,6 +7,7 @@ const router = Router();
 
 router.use(authenticate);
 
+router.get('/export/excel', authorize('usuarios', 'view'), userController.exportExcel);
 router.get('/', authorize('usuarios', 'view'), userController.list);
 router.get('/:id', authorize('usuarios', 'view'), userController.getById);
 router.post('/', authorize('usuarios', 'create'), userController.create);

@@ -62,6 +62,7 @@ export const authApi = {
 
 export const userApi = {
   list: () => api.get('/usuarios'),
+  exportExcel: () => api.get('/usuarios/export/excel', { responseType: 'blob' }),
   getById: (id: number) => api.get(`/usuarios/${id}`),
   create: (data: any) => api.post('/usuarios', data),
   update: (id: number, data: any) => api.put(`/usuarios/${id}`, data),
@@ -112,6 +113,17 @@ export const permisoApi = {
     });
   },
   descargarComprobante: (id: number) => api.get(`/permisos/${id}/comprobante`, { responseType: 'blob' }),
+  descargarPlantillaImport: () => api.get('/permisos/import/template', { responseType: 'blob' }),
+  previsualizarPlanilla: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/permisos/import/preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  importarPlanilla: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/permisos/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 };
 
 export const feriadoApi = {

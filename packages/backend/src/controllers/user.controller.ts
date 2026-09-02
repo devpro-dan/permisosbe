@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { userRepository } from '../repositories/user.repository';
 import bcrypt from 'bcryptjs';
+import ExcelJS from 'exceljs';
 import pool from '../config/database';
 import { authService } from '../services/auth.service';
 import { auditLogService } from '../services/auditLog.service';
@@ -248,6 +249,53 @@ export const userController = {
       res.json({ message: 'Usuario eliminado' });
     } catch (error) {
       res.status(500).json({ message: 'Error al eliminar usuario' });
+    }
+  },
+
+  async exportExcel(_req: Request, res: Response) {
+    try {
+      const users = await userRepository.findAll();
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Usuarios');
+      sheet.columns = [
+        { header: 'id_usuario', key: 'id_usuario', width: 12 },
+        { header: 'username', key: 'username', width: 20 },
+        { header: 'rut', key: 'rut', width: 16 },
+        { header: 'nombres', key: 'nombres', width: 22 },
+        { header: 'apellido_paterno', key: 'apellido_paterno', width: 20 },
+        { header: 'apellido_materno', key: 'apellido_materno', width: 20 },
+        { header: 'email', key: 'email', width: 28 },
+        { header: 'cargo', key: 'cargo', width: 22 },
+        { header: 'titulo', key: 'titulo', width: 20 },
+        { header: 'rol', key: 'rol', width: 16 },
+        { header: 'estado', key: 'estado', width: 12 },
+      ];
+      const headerRow = sheet.getRow(1);
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } } as any;
+      headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+      users.forEach((u: any) => {
+        sheet.addRow({
+          id_usuario: u.id,
+          username: u.username,
+          rut: `${u.rut}-${u.dv}`,
+          nombres: u.nombres,
+          apellido_paterno: u.apellido_paterno,
+          apellido_materno: u.apellido_materno || '',
+          email: u.email,
+          cargo: u.cargo,
+          titulo: u.titulo || '',
+          rol: u.rol_nombre || u.rol_id,
+          estado: u.is_suspended ? 'Suspendido' : 'Activo',
+        });
+      });
+      sheet.autoFilter = { from: 'A1', to: 'K1' } as any;
+      const buffer = await workbook.xlsx.writeBuffer();
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=usuarios.xlsx');
+      res.send(Buffer.from(buffer));
+    } catch (error) {
+      res.status(500).json({ message: 'Error al exportar usuarios' });
     }
   },
 };

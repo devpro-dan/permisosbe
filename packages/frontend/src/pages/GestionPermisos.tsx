@@ -7,18 +7,25 @@ import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Modal } from '../components/Modal';
 import { toast } from '../components/Toast';
-import { CheckCircle, XCircle, Trash2, FileText, Search, Calendar, X, Upload, Pencil } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, FileText, Search, Calendar, X, Upload, Pencil, Download, FileSpreadsheet, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDate } from '../utils/format';
 import { isWeekend, addBusinessDays } from '../utils/dates';
 
-const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, tipoJornada: string): number => {
-  const inicio = new Date(fechaInicio);
-  const fin = fechaFin ? new Date(fechaFin) : new Date(fechaInicio);
-  
-  const diffTime = Math.abs(fin.getTime() - inicio.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  
-  return tipoJornada === 'media' ? diffDays * 0.5 : diffDays;
+const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, tipoJornada: string, feriados: string[] = []): number => {
+  const set = new Set(feriados);
+  const d1 = new Date((fechaFin || fechaInicio) ? (fechaInicio + 'T12:00:00') : '');
+  const d2 = new Date(((fechaFin || fechaInicio) + 'T12:00:00'));
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return tipoJornada === 'media' ? 0.5 : 1;
+  let count = 0;
+  const cur = new Date(d1);
+  const end = new Date(d2);
+  while (cur <= end) {
+    const iso = cur.toISOString().split('T')[0];
+    if (cur.getDay() !== 0 && cur.getDay() !== 6 && !set.has(iso)) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  if (count === 0) count = 1;
+  return tipoJornada === 'media' ? count * 0.5 : count;
 };
 
 const countBusinessDays = (inicio: string, fin: string): number => {
@@ -44,6 +51,13 @@ export default function GestionPermisos() {
   const [fechaFin, setFechaFin] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingId, setUploadingId] = useState<number | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: number; errors: Array<{ fila: number; message: string }>; total: number } | null>(null);
+  const [importCollapsed, setImportCollapsed] = useState(true);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<{ preview: Array<{ fila: number; rut: string; fecha_inicio: string; fecha_fin: string; cantidad_dias: string; tipo_jornada: string; motivo: string; error: string | null; valido: boolean }>; errors: Array<{ fila: number; message: string }>; total: number } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const [editModal, setEditModal] = useState<{ permiso: Permiso | null; open: boolean }>({ permiso: null, open: false });
   const [editFechaInicio, setEditFechaInicio] = useState('');
@@ -178,6 +192,60 @@ export default function GestionPermisos() {
     }
   };
 
+  const handleDescargarPlantilla = async () => {
+    try {
+      const res = await permisoApi.descargarPlantillaImport();
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'plantilla_permisos_administrativos.xlsx';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      if (err.response?.status === 403) toast({ message: 'No tienes permisos para descargar la plantilla', type: 'error' });
+      else toast({ message: err.response?.data?.message || 'Error al descargar plantilla', type: 'error' });
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPreviewFile(file);
+    setPreviewData(null);
+    setImportResult(null);
+    setPreviewLoading(true);
+    if (importCollapsed) setImportCollapsed(false);
+    try {
+      const res = await permisoApi.previsualizarPlanilla(file);
+      setPreviewData(res.data);
+      if (res.data.errors.length) toast({ message: `${res.data.errors.length} filas con errores en previsualización`, type: 'error' });
+      else toast({ message: `${res.data.total} filas listas para importar`, type: 'success' });
+    } catch (err: any) {
+      if (err.response?.status === 403) toast({ message: err.response?.data?.message || 'No tienes permisos para previsualizar', type: 'error' });
+      else toast({ message: err.response?.data?.message || 'Error al previsualizar planilla', type: 'error' });
+    } finally {
+      setPreviewLoading(false);
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!previewFile) { toast({ message: 'Debe seleccionar un archivo primero', type: 'error' }); return; }
+    if (previewData && previewData.errors.length > 0 && !confirm(`Hay ${previewData.errors.length} filas con errores que serán omitidas. ¿Continuar con la importación de las filas válidas?`)) return;
+    setImportLoading(true);
+    try {
+      const res = await permisoApi.importarPlanilla(previewFile);
+      setImportResult(res.data);
+      toast({ message: `Importación completa: ${res.data.created} creados, ${res.data.errors.length} errores`, type: res.data.errors.length ? 'error' : 'success' });
+      setPreviewData(null);
+      setPreviewFile(null);
+      load();
+    } catch (err: any) {
+      if (err.response?.status === 403) toast({ message: err.response?.data?.message || 'No tienes permisos para importar', type: 'error' });
+      else toast({ message: err.response?.data?.message || 'Error al importar planilla', type: 'error' });
+    } finally { setImportLoading(false); }
+  };
+
   const editFechaFin = useMemo(
     () => editFechaInicio ? addBusinessDays(editFechaInicio, editCantidadDias - 1, feriados) : '',
     [editFechaInicio, editCantidadDias, feriados]
@@ -283,7 +351,7 @@ export default function GestionPermisos() {
       key: 'dias', 
       label: 'Días', 
       render: (_: any, row: Permiso) => {
-        const dias = calcularDias(row.fecha_inicio, row.fecha_fin, row.tipo_jornada);
+        const dias = calcularDias(row.fecha_inicio, row.fecha_fin, row.tipo_jornada, feriados);
         return (
           <span className="font-semibold text-primary-700">
             {dias} {dias === 1 ? 'día' : 'días'}
@@ -309,7 +377,109 @@ export default function GestionPermisos() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Gestión de Permisos</h1>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Gestión de Permisos</h1>
+        <div className="flex gap-2">
+          <button onClick={handleDescargarPlantilla} className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+            <Download className="w-4 h-4" /> Descargar plantilla
+          </button>
+          <button onClick={() => importInputRef.current?.click()} disabled={importLoading} className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50">
+            <FileSpreadsheet className="w-4 h-4" /> {importLoading ? 'Importando...' : 'Cargar planilla'}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
+        <button onClick={() => setImportCollapsed((v) => !v)} className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50">
+          <span className="text-sm font-semibold text-gray-800 flex items-center gap-2"><FileSpreadsheet className="w-4 h-4 text-primary-600" /> Carga masiva por planilla</span>
+          {importCollapsed ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronUp className="w-4 h-4 text-gray-500" />}
+        </button>
+        {!importCollapsed && (
+          <div className="px-4 pb-4 space-y-3 border-t pt-3">
+            <p className="text-xs text-gray-600">Sube un archivo Excel con múltiples permisos. Descarga primero la plantilla, complétala y luego cárgala. La segunda hoja <span className="font-medium">Instrucciones</span> detalla cada campo. La relación es <span className="font-mono">permisos_administrativos.user_id → users.id</span> y se resuelve por <span className="font-medium">RUT+DV</span>.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-2 py-1.5 text-left border">Campo</th>
+                    <th className="px-2 py-1.5 text-left border">Requerido</th>
+                    <th className="px-2 py-1.5 text-left border">Formato / Valores</th>
+                    <th className="px-2 py-1.5 text-left border">Ejemplo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td className="px-2 py-1 border font-medium">rut</td><td className="px-2 py-1 border">Sí</td><td className="px-2 py-1 border">Números y K, sin puntos ni guion</td><td className="px-2 py-1 border">12345678</td></tr>
+                  <tr><td className="px-2 py-1 border font-medium">dv</td><td className="px-2 py-1 border">Sí</td><td className="px-2 py-1 border">0-9 o K</td><td className="px-2 py-1 border">5</td></tr>
+                  <tr><td className="px-2 py-1 border font-medium">fecha_inicio</td><td className="px-2 py-1 border">Sí</td><td className="px-2 py-1 border">YYYY-MM-DD, no finde semana/feriado</td><td className="px-2 py-1 border">2026-03-02</td></tr>
+                  <tr><td className="px-2 py-1 border font-medium">cantidad_dias</td><td className="px-2 py-1 border">Sí</td><td className="px-2 py-1 border">1 a 6 — fecha_fin se calcula sola (días hábiles)</td><td className="px-2 py-1 border">2</td></tr>
+                  <tr><td className="px-2 py-1 border font-medium">tipo_jornada</td><td className="px-2 py-1 border">Sí</td><td className="px-2 py-1 border">completa | media (media solo si cantidad=1)</td><td className="px-2 py-1 border">completa</td></tr>
+                  <tr><td className="px-2 py-1 border font-medium">motivo</td><td className="px-2 py-1 border">Sí</td><td className="px-2 py-1 border">Texto libre</td><td className="px-2 py-1 border">Trámite personal</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] text-gray-500">La <span className="font-medium">fecha_fin se calcula automáticamente</span> a partir de fecha_inicio + (cantidad_dias - 1) días hábiles, saltando fines de semana y feriados.</p>
+            {previewLoading && <p className="text-xs text-gray-500">Previsualizando planilla...</p>}
+            {previewData && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-gray-700">Previsualización: {previewData.total} filas — <span className="text-green-600">{previewData.preview.filter((r) => r.valido).length} válidas</span> / <span className="text-red-600">{previewData.errors.length} con errores</span></p>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setPreviewData(null); setPreviewFile(null); }} className="px-3 py-1 text-xs border rounded-lg hover:bg-gray-50">Descartar</button>
+                    <button onClick={handleConfirmImport} disabled={importLoading || previewData.preview.filter((r) => r.valido).length === 0} className="px-4 py-1.5 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">{importLoading ? 'Importando...' : 'Confirmar importación'}</button>
+                  </div>
+                </div>
+                <div className="overflow-auto max-h-80 border rounded-lg">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left border-b">Fila</th>
+                        <th className="px-2 py-1.5 text-left border-b">RUT</th>
+                        <th className="px-2 py-1.5 text-left border-b">Inicio</th>
+                        <th className="px-2 py-1.5 text-left border-b">Días</th>
+                        <th className="px-2 py-1.5 text-left border-b">Fin calc.</th>
+                        <th className="px-2 py-1.5 text-left border-b">Jornada</th>
+                        <th className="px-2 py-1.5 text-left border-b">Motivo</th>
+                        <th className="px-2 py-1.5 text-left border-b">Estado / Error</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewData.preview.map((r) => (
+                        <tr key={r.fila} className={r.valido ? 'bg-white' : 'bg-red-50'}>
+                          <td className="px-2 py-1 border-b">{r.fila}</td>
+                          <td className="px-2 py-1 border-b font-mono">{r.rut}</td>
+                          <td className="px-2 py-1 border-b">{r.fecha_inicio}</td>
+                          <td className="px-2 py-1 border-b text-center">{r.cantidad_dias}</td>
+                          <td className="px-2 py-1 border-b">{r.fecha_fin}</td>
+                          <td className="px-2 py-1 border-b">{r.tipo_jornada}</td>
+                          <td className="px-2 py-1 border-b max-w-[180px] truncate" title={r.motivo}>{r.motivo}</td>
+                          <td className="px-2 py-1 border-b">{r.valido ? <span className="text-green-600 font-medium">✓ Válido</span> : <span className="text-red-600">{r.error}</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {importResult && (
+              <div className={`rounded-lg p-3 text-sm ${importResult.errors.length ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
+                <p className={importResult.errors.length ? 'text-amber-800' : 'text-green-800'}>
+                  Resultado: <span className="font-semibold">{importResult.created}</span> creados de <span className="font-semibold">{importResult.total}</span> filas.
+                  {importResult.errors.length > 0 && ` ${importResult.errors.length} con errores.`}
+                </p>
+                {importResult.errors.length > 0 && (
+                  <ul className="mt-2 max-h-40 overflow-auto text-xs space-y-1">
+                    {importResult.errors.map((e, i) => (
+                      <li key={i} className="text-red-700">Fila {e.fila}: {e.message}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <input type="file" ref={importInputRef} accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" />
 
       <div className="bg-white rounded-lg shadow p-4 mb-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -383,7 +553,7 @@ export default function GestionPermisos() {
           <p className="text-sm text-gray-500">{p.rut}-{p.dv}</p>
           <p className="text-sm">{formatDate(p.fecha_inicio)}{p.fecha_fin ? ` - ${formatDate(p.fecha_fin)}` : ''}</p>
           <p className="text-sm font-semibold text-primary-700">
-            {calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días
+            {calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada, feriados)} días
           </p>
           <div className="flex items-center gap-2">
             {estadoBadge(p.estado)}
@@ -425,7 +595,7 @@ export default function GestionPermisos() {
                     <div>
                       <p className="font-medium">{p.nombres} {p.apellido_paterno}</p>
                       <p className="text-sm text-gray-500">
-                        {formatDate(p.fecha_inicio)} - {calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días - {p.motivo}
+                        {formatDate(p.fecha_inicio)} - {calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada, feriados)} días - {p.motivo}
                       </p>
                     </div>
                     <div className="flex gap-2">

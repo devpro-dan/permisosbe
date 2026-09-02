@@ -7,6 +7,10 @@ const router = Router();
 
 router.use(authenticate);
 
+router.get('/import/template', authorize('permisos_administrativos', 'view'), permisoController.descargarPlantillaImport);
+router.post('/import/preview', authorize('permisos_administrativos', 'view'), permisoController.previsualizarPlanilla);
+router.post('/import', authorize('permisos_administrativos', 'create'), permisoController.importarPlanilla);
+
 router.get('/mis-permisos', permisoController.misPermisos);
 router.post('/solicitar', permisoController.solicitar);
 router.post('/registrar-para-usuario', authorize('permisos_administrativos', 'create'), permisoController.solicitarParaUsuario);

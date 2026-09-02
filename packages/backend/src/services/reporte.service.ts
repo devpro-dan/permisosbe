@@ -46,7 +46,14 @@ function calcularDias(inicio: string, fin: string | undefined | null): number {
   if (!fin || fin === inicio) return 1;
   const d1 = new Date(inicio + 'T12:00:00');
   const d2 = new Date(fin + 'T12:00:00');
-  return Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000) + 1);
+  let count = 0;
+  const cur = new Date(d1);
+  while (cur <= d2) {
+    const day = cur.getDay();
+    if (day !== 0 && day !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return Math.max(1, count);
 }
 
 const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];

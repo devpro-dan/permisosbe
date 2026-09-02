@@ -6,7 +6,7 @@ import { MobileCard } from '../components/MobileCard';
 import { Modal } from '../components/Modal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { toast } from '../components/Toast';
-import { UserPlus, Save, Key, Shield, ShieldOff, ShieldCheck, Search, X, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Save, Key, Shield, ShieldOff, ShieldCheck, Search, X, Eye, EyeOff, Download } from 'lucide-react';
 
 export default function Usuarios() {
   const [users, setUsers] = useState<User[]>([]);
@@ -214,6 +214,7 @@ export default function Usuarios() {
   if (loading) return <LoadingSpinner />;
 
   const columns = [
+    { key: 'id', label: 'ID' },
     { key: 'nombres', label: 'Nombre', render: (_: any, row: User) => `${row.nombres} ${row.apellido_paterno}` },
     { key: 'rut', label: 'RUT', render: (_: any, row: User) => `${row.rut}-${row.dv}` },
     { key: 'email', label: 'Email' },
@@ -238,13 +239,32 @@ export default function Usuarios() {
     },
   ];
 
+  const handleExportExcel = async () => {
+    try {
+      const res = await userApi.exportExcel();
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'usuarios.xlsx';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ message: err.response?.data?.message || 'Error al exportar usuarios', type: 'error' });
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Usuarios</h1>
-        <button onClick={openCreate} className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">
-          <UserPlus className="w-4 h-4" /> Nuevo Usuario
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleExportExcel} className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+            <Download className="w-4 h-4" /> Exportar Excel
+          </button>
+          <button onClick={openCreate} className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">
+            <UserPlus className="w-4 h-4" /> Nuevo Usuario
+          </button>
+        </div>
       </div>
 
       <div className="relative mb-4">
@@ -279,6 +299,7 @@ export default function Usuarios() {
 
       {filteredUsers.map((u) => (
         <MobileCard key={u.id}>
+          <p className="text-xs font-mono text-gray-500">ID: {u.id}</p>
           <p className="font-medium">{u.nombres} {u.apellido_paterno}</p>
           <p className="text-sm text-gray-500">{u.rut}-{u.dv}</p>
           <p className="text-sm">{u.email}</p>
