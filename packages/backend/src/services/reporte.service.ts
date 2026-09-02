@@ -82,6 +82,7 @@ function drawTable(
   const BOLD = 'Helvetica-Bold';
   const BLACK = '#000000';
   const HEADER_BLUE = '#60b0c0';
+  const FOOTER_RESERVE = 18;
 
   function cell(x: number, y: number, w: number, h: number, text: string, isHeader: boolean, align: string) {
     if (isHeader) {
@@ -102,21 +103,32 @@ function drawTable(
     doc.y = py;
   }
 
-  let x0 = ML;
-  doc.font(BOLD).fontSize(opts.fontSize || 9).fillColor(BLACK);
-  opts.headers.forEach((h, i) => {
-    cell(x0, doc.y, opts.widths[i], headerH, h, true, 'center');
-    x0 += opts.widths[i];
-  });
-  doc.y += headerH;
+  function needsNewPage(h: number): boolean {
+    return doc.y + h > doc.page.height - doc.page.margins.bottom - FOOTER_RESERVE;
+  }
 
-  opts.rows.forEach((row) => {
-    x0 = ML;
-    row.forEach((val, i) => {
-      cell(x0, doc.y, opts.widths[i], rowH, String(val), false, i === 0 ? 'center' : 'left');
+  function drawHeaderRow() {
+    if (needsNewPage(headerH)) doc.addPage();
+    let x0 = ML;
+    const y = doc.y;
+    opts.headers.forEach((h, i) => {
+      cell(x0, y, opts.widths[i], headerH, h, true, 'center');
       x0 += opts.widths[i];
     });
-    doc.y += rowH;
+    doc.y = y + headerH;
+  }
+
+  drawHeaderRow();
+
+  opts.rows.forEach((row) => {
+    if (needsNewPage(rowH)) drawHeaderRow();
+    let x0 = ML;
+    const y = doc.y;
+    row.forEach((val, i) => {
+      cell(x0, y, opts.widths[i], rowH, String(val), false, i === 0 ? 'center' : 'left');
+      x0 += opts.widths[i];
+    });
+    doc.y = y + rowH;
   });
 }
 
@@ -305,23 +317,34 @@ export const reporteService = {
       const logoBottom = drawLogo(doc);
       if (logoBottom > 0) doc.y = logoBottom + 8;
 
+      const PW = doc.page.width - 100;
+      const FOOTER_RESERVE = 22;
+      const ensureSpace = (h: number) => {
+        if (doc.y + h > doc.page.height - doc.page.margins.bottom - FOOTER_RESERVE) doc.addPage();
+      };
+
       doc.fontSize(20).text('Reporte de Permisos Administrativos', { align: 'center' });
       doc.moveDown();
-      doc.fontSize(12).text(`Trabajador: ${usuario.nombres} ${usuario.apellido_paterno}`);
+      doc.fontSize(12);
+      let blockH = doc.heightOfString(`Trabajador: ${usuario.nombres} ${usuario.apellido_paterno}`, { width: PW }) + doc.heightOfString(`RUT: ${usuario.rut}`, { width: PW }) + doc.heightOfString(`Año: ${new Date().getFullYear()}`, { width: PW }) + 12;
+      ensureSpace(blockH);
+      doc.text(`Trabajador: ${usuario.nombres} ${usuario.apellido_paterno}`);
       doc.text(`RUT: ${usuario.rut}`);
       doc.text(`Año: ${new Date().getFullYear()}`);
       doc.moveDown();
 
       doc.fontSize(10);
-      permisos.forEach((p, i) => {
-        doc.text(
-          `${i + 1}. ${p.fecha_inicio}${p.fecha_fin ? ` - ${p.fecha_fin}` : ''} | ${p.tipo_jornada} | ${p.estado} | ${p.motivo}`
-        );
-        doc.moveDown(0.5);
-      });
-
       if (permisos.length === 0) {
+        ensureSpace(16);
         doc.text('No hay permisos registrados en este período.');
+      } else {
+        permisos.forEach((p, i) => {
+          const line = `${i + 1}. ${p.fecha_inicio}${p.fecha_fin ? ` - ${p.fecha_fin}` : ''} | ${p.tipo_jornada} | ${p.estado} | ${p.motivo}`;
+          const h = doc.heightOfString(line, { width: PW }) + 8;
+          ensureSpace(h);
+          doc.text(line);
+          doc.moveDown(0.5);
+        });
       }
 
       doc.end();
@@ -437,11 +460,20 @@ export const reporteService = {
         doc.x = px; doc.y = py;
       }
 
+      const CERT_FOOTER_RESERVE = 62;
+      function certEnsure(h: number) {
+        if (doc.y + h > doc.page.height - doc.page.margins.bottom - CERT_FOOTER_RESERVE) doc.addPage();
+      }
+      doc.on('pageAdded', () => {
+        try { doc.image(footerBar, 0, doc.page.height - 50, { width: doc.page.width, height: 51 }); } catch (_) {}
+      });
+
       // Draw a row of cells at current doc.y, then advance doc.y by rowH.
       function row(rowH: number, cells: Array<{
         x: number; w: number; text: string;
         bg?: string; bold?: boolean; size?: number; align?: string;
       }>) {
+        certEnsure(rowH);
         const y0 = doc.y;
         cells.forEach(c => {
           cell(c.x, y0, c.w, rowH, c.text, {
@@ -449,6 +481,12 @@ export const reporteService = {
           });
         });
         doc.y = y0 + rowH;
+      }
+      function certText(text: string, opts: any = {}) {
+        const w = opts.width || PW;
+        const h = doc.heightOfString(text, { width: w, ...opts });
+        certEnsure(h + 4);
+        doc.font(opts.font || FONT).fontSize(opts.size || 10).text(text, opts.x ?? ML, doc.y, { width: w, ...opts });
       }
 
       // === HEADER (logos + school name, matching formato.docx) ===
@@ -528,6 +566,7 @@ export const reporteService = {
       doc.y += 10;
 
       // === LEGAL REFERENCE ===
+      { const t='SOLICITA SE LE CONCEDA PERMISO ADMINISTRATIVO: artículo 40 de la ley 19.070, Dto. 453/91 educa art/129; artículo 129 del decreto N° 453, de 1991, del Ministerio de Educación, para los profesionales de la educación, y a su vez artículo 4° de la Ley 19.464, establecido en la ley N° 18.883 para asistentes de la educación.'; certEnsure(doc.heightOfString(t,{width:PW})+10); }
       doc.font(BOLD).fontSize(10).text(
         'SOLICITA SE LE CONCEDA PERMISO ADMINISTRATIVO: artículo 40 de la ley 19.070, Dto. 453/91 educa art/129; ' +
         'artículo 129 del decreto N° 453, de 1991, del Ministerio de Educación, para los profesionales de la educación, ' +
@@ -613,33 +652,34 @@ export const reporteService = {
       doc.y += 4;
 
       // === VISTOS ===
-       doc.font(BOLD).fontSize(10).text('VISTOS:', ML, doc.y, { continued: true });
-       doc.font(FONT).fontSize(9).text(
-        'El D.F.L. N°1-3063 de 1980 del Ministerio del Interior, Artículo 40° D.F.L. N°1 de 1996 del Ministerio de Educación, ' +
-        'Estatuto de los Profesionales de la Educación, lo estipulado en el Contrato Individual de Trabajo (personal no docente), ' +
-        'lo dispuesto en las Leyes 18.883, 19.465, Ley 18.695, Orgánica Constitucional de Municipalidades y sus modificaciones ' +
-        'posteriores, y las facultades que me confiere la designación como directora del Establecimiento.',
-        ML, doc.y, { align: 'justify', width: PW }
-      );
-      doc.moveDown(0.4);
-       doc.font(FONT).fontSize(10).text('R E S U E L V O   QUE,', ML, doc.y, { width: PW });
-      doc.moveDown(0.2);
-      doc.font(FONT).fontSize(10).text(
-        `Autorícese la presente solicitud de permiso desde ${fechaInicio} hasta ${fechaFin} año ${anio}, ` +
-        `por ${dias} ${dias === 1 ? 'día' : 'días'}, CON/SIN goce de remuneraciones.`,
-        ML, doc.y, { width: PW }
-      );
-      doc.moveDown(0.6);
+       { const t='VISTOS: El D.F.L. N°1-3063 de 1980 del Ministerio del Interior, Artículo 40° D.F.L. N°1 de 1996 del Ministerio de Educación, Estatuto de los Profesionales de la Educación, lo estipulado en el Contrato Individual de Trabajo (personal no docente), lo dispuesto en las Leyes 18.883, 19.465, Ley 18.695, Orgánica Constitucional de Municipalidades y sus modificaciones posteriores, y las facultades que me confiere la designación como directora del Establecimiento. R E S U E L V O   QUE, Autorícese la presente solicitud de permiso desde '+fechaInicio+' hasta '+fechaFin+' año '+anio+', por '+dias+' '+(dias===1?'día':'días')+', CON/SIN goce de remuneraciones. OBSERVACIÓN IMPORTANTE: 1. Este formulario se debe llenar en duplicado. 2. Ningún funcionario puede abandonar el servicio, si no ha sido autorizado formalmente para hacer uso del permiso solicitado.'; certEnsure(doc.heightOfString(t,{width:PW})+40); }
+        doc.font(BOLD).fontSize(10).text('VISTOS:', ML, doc.y, { continued: true });
+        doc.font(FONT).fontSize(9).text(
+         'El D.F.L. N°1-3063 de 1980 del Ministerio del Interior, Artículo 40° D.F.L. N°1 de 1996 del Ministerio de Educación, ' +
+         'Estatuto de los Profesionales de la Educación, lo estipulado en el Contrato Individual de Trabajo (personal no docente), ' +
+         'lo dispuesto en las Leyes 18.883, 19.465, Ley 18.695, Orgánica Constitucional de Municipalidades y sus modificaciones ' +
+         'posteriores, y las facultades que me confiere la designación como directora del Establecimiento.',
+         ML, doc.y, { align: 'justify', width: PW }
+       );
+       doc.moveDown(0.4);
+        doc.font(FONT).fontSize(10).text('R E S U E L V O   QUE,', ML, doc.y, { width: PW });
+       doc.moveDown(0.2);
+       doc.font(FONT).fontSize(10).text(
+         `Autorícese la presente solicitud de permiso desde ${fechaInicio} hasta ${fechaFin} año ${anio}, ` +
+         `por ${dias} ${dias === 1 ? 'día' : 'días'}, CON/SIN goce de remuneraciones.`,
+         ML, doc.y, { width: PW }
+       );
+       doc.moveDown(0.6);
 
-      // === OBSERVATION ===
-      doc.font(BOLD).fontSize(10).text('OBSERVACIÓN IMPORTANTE:', ML, doc.y, { width: PW });
-      doc.moveDown(0.15);
-      doc.font(FONT).fontSize(10).text('1.  Este formulario se debe llenar en duplicado.', ML, doc.y, { width: PW });
-      doc.moveDown(0.1);
-      doc.font(FONT).fontSize(10).text(
-        '2.  Ningún funcionario puede abandonar el servicio, si no ha sido autorizado formalmente para hacer uso del permiso solicitado.',
-        ML, doc.y, { width: PW }
-      );
+       // === OBSERVATION ===
+       doc.font(BOLD).fontSize(10).text('OBSERVACIÓN IMPORTANTE:', ML, doc.y, { width: PW });
+       doc.moveDown(0.15);
+       doc.font(FONT).fontSize(10).text('1.  Este formulario se debe llenar en duplicado.', ML, doc.y, { width: PW });
+       doc.moveDown(0.1);
+       doc.font(FONT).fontSize(10).text(
+         '2.  Ningún funcionario puede abandonar el servicio, si no ha sido autorizado formalmente para hacer uso del permiso solicitado.',
+         ML, doc.y, { width: PW }
+       );
 
       // === FOOTER (full-width bar image, matching formato.docx) ===
       try {
