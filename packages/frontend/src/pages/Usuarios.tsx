@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { userApi, roleApi } from '../services/api';
 import { User, Role } from '../types';
 import { DataTable } from '../components/DataTable';
@@ -6,7 +6,7 @@ import { MobileCard } from '../components/MobileCard';
 import { Modal } from '../components/Modal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { toast } from '../components/Toast';
-import { UserPlus, Save, Key, Shield, ShieldOff, ShieldCheck } from 'lucide-react';
+import { UserPlus, Save, Key, Shield, ShieldOff, ShieldCheck, Search, X, Eye, EyeOff } from 'lucide-react';
 
 export default function Usuarios() {
   const [users, setUsers] = useState<User[]>([]);
@@ -30,6 +30,27 @@ export default function Usuarios() {
   const [saving2FA, setSaving2FA] = useState(false);
   const [twoFAToken, setTwoFAToken] = useState('');
   const [verifying2FA, setVerifying2FA] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  const [search, setSearch] = useState('');
+
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) => {
+      const fullName = `${u.nombres} ${u.apellido_paterno} ${u.apellido_materno || ''}`.toLowerCase();
+      const rutFull = `${u.rut}-${u.dv}`.toLowerCase();
+      const rutOnly = u.rut.toLowerCase();
+      return (
+        fullName.includes(q) ||
+        u.username.toLowerCase().includes(q) ||
+        rutFull.includes(q) ||
+        rutOnly.includes(q) ||
+        u.cargo.toLowerCase().includes(q)
+      );
+    });
+  }, [users, search]);
 
   const load = async () => {
     try {
@@ -48,6 +69,7 @@ export default function Usuarios() {
   const openCreate = () => {
     setEditUser(null);
     setForm({ nombres: '', rut: '', dv: '', apellido_paterno: '', apellido_materno: '', titulo: '', cargo: '', email: '', username: '', password: '', rol_id: roles[0]?.id || 0, can_change_password: true });
+    setShowPassword(false);
     setModalOpen(true);
   };
 
@@ -60,6 +82,7 @@ export default function Usuarios() {
       username: user.username, password: '', rol_id: user.rol_id,
       can_change_password: user.can_change_password ?? true,
     });
+    setShowPassword(false);
     setModalOpen(true);
   };
 
@@ -104,6 +127,7 @@ export default function Usuarios() {
 
   const openPasswordModal = (user: User) => {
     setNewPassword('');
+    setShowNewPassword(false);
     setPasswordModal({ user, open: true });
   };
 
@@ -223,9 +247,37 @@ export default function Usuarios() {
         </button>
       </div>
 
-      <DataTable columns={columns} data={users} />
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por nombre, username, RUT o cargo..."
+          className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm bg-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+            aria-label="Limpiar búsqueda"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
 
-      {users.map((u) => (
+      {filteredUsers.length === 0 && search.trim() ? (
+        <p className="text-center text-sm text-gray-500 py-8">No se encontraron usuarios para &quot;{search.trim()}&quot;</p>
+      ) : null}
+
+      {search.trim() && filteredUsers.length > 0 && (
+        <p className="text-xs text-gray-500 mb-3">{filteredUsers.length} resultado{filteredUsers.length !== 1 ? 's' : ''} de {users.length}</p>
+      )}
+
+      <DataTable columns={columns} data={filteredUsers} />
+
+      {filteredUsers.map((u) => (
         <MobileCard key={u.id}>
           <p className="font-medium">{u.nombres} {u.apellido_paterno}</p>
           <p className="text-sm text-gray-500">{u.rut}-{u.dv}</p>
@@ -255,37 +307,37 @@ export default function Usuarios() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-700">Nombres</label>
-              <input value={form.nombres} onChange={(e) => setForm({ ...form, nombres: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input value={form.nombres} onChange={(e) => setForm({ ...form, nombres: e.target.value })} maxLength={100} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700">Ap. Paterno</label>
-              <input value={form.apellido_paterno} onChange={(e) => setForm({ ...form, apellido_paterno: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input value={form.apellido_paterno} onChange={(e) => setForm({ ...form, apellido_paterno: e.target.value })} maxLength={100} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700">Ap. Materno</label>
-              <input value={form.apellido_materno} onChange={(e) => setForm({ ...form, apellido_materno: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+              <input value={form.apellido_materno} onChange={(e) => setForm({ ...form, apellido_materno: e.target.value })} maxLength={100} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="flex gap-2">
               <div className="flex-1">
                 <label className="block text-xs font-medium text-gray-700">RUT</label>
-                <input value={form.rut} onChange={(e) => setForm({ ...form, rut: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
+                <input value={form.rut} onChange={(e) => setForm({ ...form, rut: e.target.value.toUpperCase().replace(/[^0-9K]/g, '').slice(0, 12) })} inputMode="text" pattern="[0-9K]*" maxLength={12} placeholder="12345678" className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
               </div>
               <div className="w-16">
                 <label className="block text-xs font-medium text-gray-700">DV</label>
-                <input value={form.dv} onChange={(e) => setForm({ ...form, dv: e.target.value })} maxLength={1} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
+                <input value={form.dv} onChange={(e) => setForm({ ...form, dv: e.target.value.toUpperCase().replace(/[^0-9K]/g, '').slice(0, 1) })} inputMode="text" pattern="[0-9Kk]" maxLength={1} placeholder="K" className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center uppercase" required />
               </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700">Email</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} maxLength={255} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700">Cargo</label>
-              <input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} maxLength={100} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700">Título</label>
-              <input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+              <input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} maxLength={100} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700">Rol</label>
@@ -295,11 +347,16 @@ export default function Usuarios() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700">Username</label>
-              <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} maxLength={50} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700">{editUser ? 'Nueva Contraseña (dejar vacío)' : 'Contraseña'}</label>
-              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required={!editUser} />
+              <div className="relative">
+                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} maxLength={72} minLength={6} className="w-full pr-10 px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" required={!editUser} />
+                <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} tabIndex={-1}>
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="can_change_password" checked={form.can_change_password} onChange={(e) => setForm({ ...form, can_change_password: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
@@ -316,15 +373,21 @@ export default function Usuarios() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nueva Contraseña</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-              className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-              minLength={6}
-              required
-            />
+            <div className="relative">
+              <input
+                type={showNewPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                className="w-full pr-10 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                minLength={6}
+                maxLength={72}
+                required
+              />
+              <button type="button" onClick={() => setShowNewPassword((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700" aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} tabIndex={-1}>
+                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           <button
             onClick={handleChangePassword}

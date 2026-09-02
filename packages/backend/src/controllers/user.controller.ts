@@ -42,9 +42,33 @@ export const userController = {
         return;
       }
 
+      const rutNorm = String(rut).trim().toUpperCase();
+      const dvNorm = String(dv).trim().toUpperCase();
+      if (!/^[0-9K]+$/.test(rutNorm) || rutNorm.length > 12) {
+        res.status(400).json({ message: 'RUT inválido: solo números y K, máximo 12 caracteres' });
+        return;
+      }
+      if (!/^[0-9K]$/.test(dvNorm)) {
+        res.status(400).json({ message: 'DV inválido: solo números y K (1 carácter)' });
+        return;
+      }
+
+      if (String(password).length < 6 || String(password).length > 72) {
+        res.status(400).json({ message: 'La contraseña debe tener entre 6 y 72 caracteres' });
+        return;
+      }
+
+      if (String(nombres).length > 100) { res.status(400).json({ message: 'Nombres máximo 100 caracteres' }); return; }
+      if (String(apellido_paterno).length > 100) { res.status(400).json({ message: 'Apellido paterno máximo 100 caracteres' }); return; }
+      if (apellido_materno && String(apellido_materno).length > 100) { res.status(400).json({ message: 'Apellido materno máximo 100 caracteres' }); return; }
+      if (titulo && String(titulo).length > 100) { res.status(400).json({ message: 'Título máximo 100 caracteres' }); return; }
+      if (String(cargo).length > 100) { res.status(400).json({ message: 'Cargo máximo 100 caracteres' }); return; }
+      if (String(email).length > 255) { res.status(400).json({ message: 'Email máximo 255 caracteres' }); return; }
+      if (String(username).length > 50) { res.status(400).json({ message: 'Username máximo 50 caracteres' }); return; }
+
       const password_hash = await bcrypt.hash(password, 10);
       const user = await userRepository.create({
-        nombres, rut, dv, apellido_paterno, apellido_materno, titulo, cargo, email, username, password_hash, rol_id, can_change_password,
+        nombres, rut: rutNorm, dv: dvNorm, apellido_paterno, apellido_materno, titulo, cargo, email, username, password_hash, rol_id, can_change_password,
       } as any);
 
       const { password_hash: _, ...result } = user;
@@ -64,7 +88,36 @@ export const userController = {
       const id = parseInt(req.params.id);
       const data = req.body;
 
+      if (data.rut !== undefined) {
+        const rutNorm = String(data.rut).trim().toUpperCase();
+        if (!/^[0-9K]+$/.test(rutNorm) || rutNorm.length > 12) {
+          res.status(400).json({ message: 'RUT inválido: solo números y K, máximo 12 caracteres' });
+          return;
+        }
+        data.rut = rutNorm;
+      }
+      if (data.dv !== undefined) {
+        const dvNorm = String(data.dv).trim().toUpperCase();
+        if (!/^[0-9K]$/.test(dvNorm)) {
+          res.status(400).json({ message: 'DV inválido: solo números y K (1 carácter)' });
+          return;
+        }
+        data.dv = dvNorm;
+      }
+
+      const lenCheck: Record<string, number> = { nombres: 100, apellido_paterno: 100, apellido_materno: 100, titulo: 100, cargo: 100, email: 255, username: 50 };
+      for (const [field, max] of Object.entries(lenCheck)) {
+        if (data[field] !== undefined && data[field] !== null && String(data[field]).length > max) {
+          res.status(400).json({ message: `${field} máximo ${max} caracteres` });
+          return;
+        }
+      }
+
       if (data.password) {
+        if (String(data.password).length < 6 || String(data.password).length > 72) {
+          res.status(400).json({ message: 'La contraseña debe tener entre 6 y 72 caracteres' });
+          return;
+        }
         data.password_hash = await bcrypt.hash(data.password, 10);
       }
       delete data.password;
@@ -103,8 +156,8 @@ export const userController = {
       const id = parseInt(req.params.id);
       const { password } = req.body;
 
-      if (!password || password.length < 6) {
-        res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
+      if (!password || password.length < 6 || password.length > 72) {
+        res.status(400).json({ message: 'La contraseña debe tener entre 6 y 72 caracteres' });
         return;
       }
 

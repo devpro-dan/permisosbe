@@ -122,8 +122,8 @@ export const authController = {
         return;
       }
 
-      if (newPassword.length < 6) {
-        res.status(400).json({ message: 'La nueva contraseña debe tener al menos 6 caracteres' });
+      if (newPassword.length < 6 || newPassword.length > 72) {
+        res.status(400).json({ message: 'La nueva contraseña debe tener entre 6 y 72 caracteres' });
         return;
       }
 
@@ -210,8 +210,8 @@ export const authController = {
         return;
       }
 
-      if (newPassword.length < 6) {
-        res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
+      if (newPassword.length < 6 || newPassword.length > 72) {
+        res.status(400).json({ message: 'La contraseña debe tener entre 6 y 72 caracteres' });
         return;
       }
 
