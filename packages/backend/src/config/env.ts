@@ -31,4 +31,6 @@ export const env = {
   JWT_SECRET: process.env.JWT_SECRET || 'default-secret',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '2h',
   URL_CLIENT: process.env.URL_CLIENT || 'http://localhost:5173',
+  UPLOADS_PATH: process.env.UPLOADS_PATH || '',
+  LOGS_PATH: process.env.LOGS_PATH || '',
 };

@@ -7,7 +7,14 @@ import { permisoService } from '../services/permiso.service';
 import { emailService } from '../services/email.service';
 import { auditLogService } from '../services/auditLog.service';
 
-const UPLOADS_DIR = path.resolve(__dirname, '..', '..', '..', '..', 'uploads', 'comprobantes');
+const UPLOADS_DIR = path.resolve(
+  (() => {
+    if (process.env.UPLOADS_PATH) return process.env.UPLOADS_PATH;
+    const cwd = process.cwd();
+    if (fs.existsSync(path.join(cwd, 'packages'))) return path.join(cwd, 'uploads', 'comprobantes');
+    return path.join(cwd, 'uploads', 'comprobantes');
+  })()
+);
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }

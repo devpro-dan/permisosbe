@@ -4,7 +4,14 @@ import { PermisoAdministrativo } from '../types';
 import fs from 'fs';
 import path from 'path';
 
-const COMPROBANTES_DIR = path.resolve(__dirname, '..', '..', '..', '..', 'uploads', 'comprobantes');
+const COMPROBANTES_DIR = path.resolve(
+  (() => {
+    if (process.env.UPLOADS_PATH) return process.env.UPLOADS_PATH;
+    const cwd = process.cwd();
+    if (fs.existsSync(path.join(cwd, 'packages'))) return path.join(cwd, 'uploads', 'comprobantes');
+    return path.join(cwd, 'uploads', 'comprobantes');
+  })()
+);
 
 function addComprobanteStatus<T extends { comprobante_url?: string | null }>(permiso: T) {
   return {

@@ -15,7 +15,14 @@ import auditLogRoutes from './routes/auditLog.routes';
 import { env } from './config/env';
 import { logger } from './utils/logger';
 
-const logsDir = path.resolve(__dirname, '..', '..', '..', 'logs');
+const logsDir = path.resolve(
+  (() => {
+    if (process.env.LOGS_PATH) return process.env.LOGS_PATH;
+    const cwd = process.cwd();
+    if (fs.existsSync(path.join(cwd, 'packages'))) return path.join(cwd, 'logs');
+    return path.join(cwd, 'logs');
+  })()
+);
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }

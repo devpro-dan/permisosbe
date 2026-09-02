@@ -2,7 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { env } from '../config/env';
 
-const LOG_DIR = path.resolve(__dirname, '..', '..', '..', '..', 'logs');
+const LOG_DIR = path.resolve(
+  (() => {
+    if (process.env.LOGS_PATH) return process.env.LOGS_PATH;
+    const cwd = process.cwd();
+    if (fs.existsSync(path.join(cwd, 'packages'))) return path.join(cwd, 'logs');
+    return path.join(cwd, 'logs');
+  })()
+);
 const LOG_FILE = path.join(LOG_DIR, 'app.log');
 const MAX_SIZE = 5 * 1024 * 1024;
 
