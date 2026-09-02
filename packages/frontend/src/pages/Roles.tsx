@@ -5,7 +5,7 @@ import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { Modal } from '../components/Modal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { Plus, Shield, Save } from 'lucide-react';
+import { Plus, Shield, Save, Loader2 } from 'lucide-react';
 
 const SECCIONES = ['usuarios', 'roles', 'permisos_administrativos', 'reportes', 'configuracion', 'sesiones', 'audit_log', 'feriados'];
 
@@ -17,6 +17,10 @@ export default function Roles() {
   const [permissions, setPermissions] = useState<RolePermission[]>([]);
   const [form, setForm] = useState({ nombre: '', descripcion: '' });
   const [editRole, setEditRole] = useState<Role | null>(null);
+  const [savingRole, setSavingRole] = useState(false);
+  const [savingPerms, setSavingPerms] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [loadingPerms, setLoadingPerms] = useState(false);
 
   const load = async () => {
     try {
@@ -32,12 +36,15 @@ export default function Roles() {
   useEffect(() => { load(); }, []);
 
   const openPermModal = async (role: Role) => {
+    setLoadingPerms(true);
     try {
       const res = await roleApi.getPermissions(role.id);
       setPermissions(res.data);
       setPermModal({ role, open: true });
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoadingPerms(false);
     }
   };
 
@@ -58,6 +65,7 @@ export default function Roles() {
 
   const savePermissions = async () => {
     if (!permModal.role) return;
+    setSavingPerms(true);
     try {
       for (const perm of permissions) {
         await roleApi.setPermission(permModal.role.id, {
@@ -71,6 +79,8 @@ export default function Roles() {
       setPermModal({ role: null, open: false });
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al guardar permisos');
+    } finally {
+      setSavingPerms(false);
     }
   };
 
@@ -88,6 +98,7 @@ export default function Roles() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSavingRole(true);
     try {
       if (editRole) {
         await roleApi.update(editRole.id, form);
@@ -98,18 +109,25 @@ export default function Roles() {
       load();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al guardar rol');
+    } finally {
+      setSavingRole(false);
     }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('¿Eliminar este rol?')) return;
+    setDeletingId(id);
     try {
       await roleApi.delete(id);
       load();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al eliminar');
+    } finally {
+      setDeletingId(null);
     }
   };
+
+  const isProcessing = savingRole || savingPerms || deletingId !== null || loadingPerms;
 
   if (loading) return <LoadingSpinner />;
 
@@ -120,6 +138,14 @@ export default function Roles() {
 
   return (
     <div>
+      {isProcessing && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg px-8 py-6 flex flex-col items-center gap-3 shadow-xl">
+            <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
+            <p className="text-sm font-medium text-gray-700">Procesando...</p>
+          </div>
+        </div>
+      )}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Roles</h1>
         <button onClick={openCreate} className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">
@@ -170,8 +196,8 @@ export default function Roles() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
             <textarea value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} rows={3} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
-          <button type="submit" className="flex items-center justify-center gap-2 w-full py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
-            <Save className="w-4 h-4" /> {editRole ? 'Actualizar' : 'Crear'} Rol
+          <button type="submit" disabled={savingRole} className="flex items-center justify-center gap-2 w-full py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg disabled:opacity-50">
+            {savingRole ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {savingRole ? 'Guardando...' : editRole ? 'Actualizar' : 'Crear'} Rol
           </button>
         </form>
       </Modal>
@@ -201,8 +227,8 @@ export default function Roles() {
               </div>
             );
           })}
-          <button onClick={savePermissions} className="flex items-center justify-center gap-2 w-full py-2 bg-success-600 hover:bg-success-700 text-white rounded-lg">
-            <Save className="w-4 h-4" /> Guardar Permisos
+          <button onClick={savePermissions} disabled={savingPerms} className="flex items-center justify-center gap-2 w-full py-2 bg-success-600 hover:bg-success-700 text-white rounded-lg disabled:opacity-50">
+            {savingPerms ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {savingPerms ? 'Guardando...' : 'Guardar Permisos'}
           </button>
         </div>
       </Modal>

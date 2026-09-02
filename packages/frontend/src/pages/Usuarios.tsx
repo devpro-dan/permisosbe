@@ -6,7 +6,7 @@ import { MobileCard } from '../components/MobileCard';
 import { Modal } from '../components/Modal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { toast } from '../components/Toast';
-import { UserPlus, Save, Key, Shield, ShieldOff, ShieldCheck, Search, X, Eye, EyeOff, Download } from 'lucide-react';
+import { UserPlus, Save, Key, Shield, ShieldOff, ShieldCheck, Search, X, Eye, EyeOff, Download, Loader2 } from 'lucide-react';
 
 export default function Usuarios() {
   const [users, setUsers] = useState<User[]>([]);
@@ -32,6 +32,12 @@ export default function Usuarios() {
   const [verifying2FA, setVerifying2FA] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [savingUser, setSavingUser] = useState(false);
+  const [suspendingId, setSuspendingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [disabling2FA, setDisabling2FA] = useState(false);
+  const [loading2FAStatus, setLoading2FAStatus] = useState(false);
 
   const [search, setSearch] = useState('');
 
@@ -88,6 +94,7 @@ export default function Usuarios() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSavingUser(true);
     try {
       if (editUser) {
         await userApi.update(editUser.id, form);
@@ -100,28 +107,36 @@ export default function Usuarios() {
       load();
     } catch (err: any) {
       toast({ message: err.response?.data?.message || 'Error al guardar usuario', type: 'error' });
+    } finally {
+      setSavingUser(false);
     }
   };
 
   const handleSuspend = async (id: number, suspended: boolean) => {
     if (!confirm(suspended ? '¿Suspender a este usuario?' : '¿Reactivar a este usuario?')) return;
+    setSuspendingId(id);
     try {
       await userApi.suspend(id, suspended);
       toast({ message: suspended ? 'Usuario suspendido' : 'Usuario activado', type: 'success' });
       load();
     } catch (err: any) {
       toast({ message: err.response?.data?.message || 'Error al cambiar estado', type: 'error' });
+    } finally {
+      setSuspendingId(null);
     }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('¿Eliminar este usuario?')) return;
+    setDeletingId(id);
     try {
       await userApi.delete(id);
       toast({ message: 'Usuario eliminado', type: 'success' });
       load();
     } catch (err: any) {
       toast({ message: err.response?.data?.message || 'Error al eliminar', type: 'error' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -154,11 +169,14 @@ export default function Usuarios() {
     setTwoFASecret('');
     setTwoFAQr('');
     setTwoFAToken('');
+    setLoading2FAStatus(true);
     try {
       const res = await userApi.get2FAStatus(user.id);
       setTwoFAModal({ user, open: true, enabled: res.data.enabled });
     } catch {
       toast({ message: 'Error al obtener estado 2FA', type: 'error' });
+    } finally {
+      setLoading2FAStatus(false);
     }
   };
 
@@ -202,14 +220,26 @@ export default function Usuarios() {
   const handleDisable2FA = async () => {
     if (!twoFAModal.user) return;
     if (!confirm('¿Desactivar 2FA para este usuario?')) return;
+    setDisabling2FA(true);
     try {
       await userApi.disable2FA(twoFAModal.user.id);
       toast({ message: '2FA desactivado correctamente', type: 'success' });
       setTwoFAModal({ user: null, open: false, enabled: false });
     } catch (err: any) {
       toast({ message: err.response?.data?.message || 'Error al desactivar 2FA', type: 'error' });
+    } finally {
+      setDisabling2FA(false);
     }
   };
+
+  const isProcessing = savingUser || suspendingId !== null || deletingId !== null || exporting || savingPassword || saving2FA || verifying2FA || disabling2FA || loading2FAStatus;
+  const [showProcessing, setShowProcessing] = useState(false);
+  useEffect(() => {
+    let t: any;
+    if (isProcessing) setShowProcessing(true);
+    else t = setTimeout(() => setShowProcessing(false), 500);
+    return () => clearTimeout(t);
+  }, [isProcessing]);
 
   if (loading) return <LoadingSpinner />;
 
@@ -229,17 +259,24 @@ export default function Usuarios() {
           <button onClick={() => openPasswordModal(user)} className="inline-flex items-center gap-1 text-amber-600 hover:text-amber-800 text-sm"><Key className="w-3.5 h-3.5" /> Password</button>
           <button onClick={() => openTwoFAModal(user)} className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-800 text-sm"><Shield className="w-3.5 h-3.5" /> 2FA</button>
           {!user.is_suspended ? (
-            <button onClick={() => handleSuspend(user.id, true)} className="text-orange-600 hover:text-orange-800 text-sm">Suspender</button>
+            <button onClick={() => handleSuspend(user.id, true)} disabled={suspendingId === user.id} className="text-orange-600 hover:text-orange-800 text-sm disabled:opacity-50 inline-flex items-center gap-1">
+              {suspendingId === user.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Suspender
+            </button>
           ) : (
-            <button onClick={() => handleSuspend(user.id, false)} className="text-green-600 hover:text-success-800 text-sm">Reactivar</button>
+            <button onClick={() => handleSuspend(user.id, false)} disabled={suspendingId === user.id} className="text-green-600 hover:text-success-800 text-sm disabled:opacity-50 inline-flex items-center gap-1">
+              {suspendingId === user.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Reactivar
+            </button>
           )}
-          <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:text-danger-800 text-sm">Eliminar</button>
+          <button onClick={() => handleDelete(user.id)} disabled={deletingId === user.id} className="text-red-600 hover:text-danger-800 text-sm disabled:opacity-50 inline-flex items-center gap-1">
+            {deletingId === user.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Eliminar
+          </button>
         </div>
       ),
     },
   ];
 
   const handleExportExcel = async () => {
+    setExporting(true);
     try {
       const res = await userApi.exportExcel();
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -250,16 +287,26 @@ export default function Usuarios() {
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
       toast({ message: err.response?.data?.message || 'Error al exportar usuarios', type: 'error' });
+    } finally {
+      setExporting(false);
     }
   };
 
   return (
     <div>
+      {showProcessing && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg px-8 py-6 flex flex-col items-center gap-3 shadow-xl">
+            <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
+            <p className="text-sm font-medium text-gray-700">Procesando...</p>
+          </div>
+        </div>
+      )}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Usuarios</h1>
         <div className="flex gap-2">
-          <button onClick={handleExportExcel} className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-            <Download className="w-4 h-4" /> Exportar Excel
+          <button onClick={handleExportExcel} disabled={exporting} className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50">
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Exportar Excel
           </button>
           <button onClick={openCreate} className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">
             <UserPlus className="w-4 h-4" /> Nuevo Usuario
@@ -314,11 +361,17 @@ export default function Usuarios() {
               <Shield className="w-3.5 h-3.5" /> 2FA
             </button>
             {!u.is_suspended ? (
-              <button onClick={() => handleSuspend(u.id, true)} className="text-orange-600 text-sm font-medium">Suspender</button>
+              <button onClick={() => handleSuspend(u.id, true)} disabled={suspendingId === u.id} className="text-orange-600 text-sm font-medium disabled:opacity-50 inline-flex items-center gap-1">
+                {suspendingId === u.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Suspender
+              </button>
             ) : (
-              <button onClick={() => handleSuspend(u.id, false)} className="text-green-600 text-sm font-medium">Reactivar</button>
+              <button onClick={() => handleSuspend(u.id, false)} disabled={suspendingId === u.id} className="text-green-600 text-sm font-medium disabled:opacity-50 inline-flex items-center gap-1">
+                {suspendingId === u.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Reactivar
+              </button>
             )}
-            <button onClick={() => handleDelete(u.id)} className="text-red-600 text-sm font-medium">Eliminar</button>
+            <button onClick={() => handleDelete(u.id)} disabled={deletingId === u.id} className="text-red-600 text-sm font-medium disabled:opacity-50 inline-flex items-center gap-1">
+              {deletingId === u.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Eliminar
+            </button>
           </div>
         </MobileCard>
       ))}
@@ -384,8 +437,8 @@ export default function Usuarios() {
               <label htmlFor="can_change_password" className="text-xs font-medium text-gray-700 cursor-pointer">Puede cambiar su contraseña</label>
             </div>
           </div>
-          <button type="submit" className="flex items-center justify-center gap-2 w-full py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm">
-            <Save className="w-4 h-4" /> {editUser ? 'Actualizar' : 'Crear'} Usuario
+          <button type="submit" disabled={savingUser} className="flex items-center justify-center gap-2 w-full py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm disabled:opacity-50">
+            {savingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {savingUser ? 'Guardando...' : editUser ? 'Actualizar' : 'Crear'} Usuario
           </button>
         </form>
       </Modal>
@@ -415,22 +468,28 @@ export default function Usuarios() {
             disabled={savingPassword}
             className="flex items-center justify-center gap-2 w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg disabled:opacity-50"
           >
-            <Key className="w-4 h-4" /> {savingPassword ? 'Guardando...' : 'Cambiar Contraseña'}
+            {savingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />} {savingPassword ? 'Guardando...' : 'Cambiar Contraseña'}
           </button>
         </div>
       </Modal>
 
       <Modal isOpen={twoFAModal.open} onClose={() => setTwoFAModal({ user: null, open: false, enabled: false })} title={`Autenticación 2FA — ${twoFAModal.user?.nombres} ${twoFAModal.user?.apellido_paterno}`}>
         <div className="space-y-4">
-          {twoFAModal.enabled ? (
+          {loading2FAStatus ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+              <p className="text-sm text-gray-500">Cargando estado 2FA...</p>
+            </div>
+          ) : twoFAModal.enabled ? (
             <div className="text-center space-y-4">
               <Shield className="w-12 h-12 text-green-600 mx-auto" />
               <p className="text-green-700 font-medium">2FA está habilitado para este usuario.</p>
               <button
                 onClick={handleDisable2FA}
-                className="flex items-center justify-center gap-2 w-full py-2 bg-danger-600 hover:bg-danger-700 text-white rounded-lg"
+                disabled={disabling2FA}
+                className="flex items-center justify-center gap-2 w-full py-2 bg-danger-600 hover:bg-danger-700 text-white rounded-lg disabled:opacity-50"
               >
-                <ShieldOff className="w-4 h-4" /> Desactivar 2FA
+                {disabling2FA ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldOff className="w-4 h-4" />} {disabling2FA ? 'Desactivando...' : 'Desactivar 2FA'}
               </button>
             </div>
           ) : twoFAQr ? (
@@ -454,7 +513,7 @@ export default function Usuarios() {
                   disabled={verifying2FA || twoFAToken.length !== 6}
                   className="mt-3 flex items-center justify-center gap-2 w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50"
                 >
-                  <ShieldCheck className="w-4 h-4" /> {verifying2FA ? 'Verificando...' : 'Verificar y Activar'}
+                  {verifying2FA ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} {verifying2FA ? 'Verificando...' : 'Verificar y Activar'}
                 </button>
               </div>
             </div>
@@ -467,7 +526,7 @@ export default function Usuarios() {
                 disabled={saving2FA}
                 className="flex items-center justify-center gap-2 w-full py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg disabled:opacity-50"
               >
-                <Shield className="w-4 h-4" /> {saving2FA ? 'Configurando...' : 'Configurar 2FA'}
+                {saving2FA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />} {saving2FA ? 'Configurando...' : 'Configurar 2FA'}
               </button>
             </div>
           )}

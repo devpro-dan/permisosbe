@@ -7,19 +7,46 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+let pendingMutations = 0;
+const pendingListeners = new Set<(n: number) => void>();
+const notifyPending = () => pendingListeners.forEach((cb) => cb(pendingMutations));
+export const subscribePending = (cb: (n: number) => void) => {
+  pendingListeners.add(cb);
+  cb(pendingMutations);
+  return () => { pendingListeners.delete(cb); };
+};
+const isMutation = (method?: string) => ['post', 'put', 'patch', 'delete'].includes((method || '').toLowerCase());
+const isDocumentDownload = (url?: string) => !!url && /\/certificado|\/comprobante|\/reporte|\/export/i.test(url);
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const shouldTrack = (isMutation(config.method) || isDocumentDownload(config.url)) && !(config as any)._skipGlobalLoading;
+  if (shouldTrack) {
+    pendingMutations++;
+    notifyPending();
+  }
+  (config as any)._tracked = shouldTrack;
   return config;
 });
 
 let isRedirecting = false;
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if ((response.config as any)._tracked) {
+      pendingMutations = Math.max(0, pendingMutations - 1);
+      notifyPending();
+    }
+    return response;
+  },
   (error) => {
+    if ((error.config as any)?._tracked) {
+      pendingMutations = Math.max(0, pendingMutations - 1);
+      notifyPending();
+    }
     if (error.response?.status === 401 && !isRedirecting) {
       const errorCode = error.response?.data?.code;
       const currentPath = window.location.pathname;

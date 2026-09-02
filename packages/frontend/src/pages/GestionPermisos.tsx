@@ -7,7 +7,7 @@ import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Modal } from '../components/Modal';
 import { toast } from '../components/Toast';
-import { CheckCircle, XCircle, Trash2, FileText, Search, Calendar, X, Upload, Pencil, Download, FileSpreadsheet, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, FileText, Search, Calendar, X, Upload, Pencil, Download, FileSpreadsheet, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { formatDate } from '../utils/format';
 import { isWeekend, addBusinessDays } from '../utils/dates';
 
@@ -51,6 +51,7 @@ export default function GestionPermisos() {
   const [fechaFin, setFechaFin] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingId, setUploadingId] = useState<number | null>(null);
+  const [uploading, setUploading] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState<{ created: number; errors: Array<{ fila: number; message: string }>; total: number } | null>(null);
@@ -58,6 +59,10 @@ export default function GestionPermisos() {
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<{ preview: Array<{ fila: number; rut: string; fecha_inicio: string; fecha_fin: string; cantidad_dias: string; tipo_jornada: string; motivo: string; error: string | null; valido: boolean }>; errors: Array<{ fila: number; message: string }>; total: number } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [rejecting, setRejecting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const [editModal, setEditModal] = useState<{ permiso: Permiso | null; open: boolean }>({ permiso: null, open: false });
   const [editFechaInicio, setEditFechaInicio] = useState('');
@@ -113,22 +118,42 @@ export default function GestionPermisos() {
 
   const handleAprobar = async (id: number) => {
     if (!confirm('¿Aprobar este permiso?')) return;
+    setApprovingId(id);
     try {
       await permisoApi.aprobar(id);
+      toast({ message: 'Permiso aprobado', type: 'success' });
       load();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al aprobar');
+      toast({ message: err.response?.data?.message || 'Error al aprobar', type: 'error' });
+    } finally {
+      setApprovingId(null);
     }
   };
 
   const handleUploadClick = (id: number) => {
     setUploadingId(id);
     fileInputRef.current?.click();
+    const onFocus = () => {
+      setTimeout(() => {
+        if (fileInputRef.current && !fileInputRef.current.value) {
+          setUploadingId(null);
+        }
+        window.removeEventListener('focus', onFocus);
+      }, 300);
+    };
+    window.addEventListener('focus', onFocus);
   };
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !uploadingId) return;
+    if (!file) {
+      setUploadingId(null);
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    if (!uploadingId) return;
+    setUploading(true);
     try {
       await permisoApi.subirComprobante(uploadingId, file);
       toast({ message: 'Comprobante subido correctamente', type: 'success' });
@@ -136,19 +161,25 @@ export default function GestionPermisos() {
     } catch (err: any) {
       toast({ message: err.response?.data?.message || 'Error al subir comprobante', type: 'error' });
     } finally {
+      setUploading(false);
       setUploadingId(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   const handleRechazar = async () => {
+    if (!motivoRechazo.trim()) { toast({ message: 'Debe ingresar motivo de rechazo', type: 'error' }); return; }
+    setRejecting(true);
     try {
       await permisoApi.rechazar(rechazoModal.id, motivoRechazo);
+      toast({ message: 'Permiso rechazado', type: 'success' });
       setRechazoModal({ id: 0, open: false });
       setMotivoRechazo('');
       load();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al rechazar');
+      toast({ message: err.response?.data?.message || 'Error al rechazar', type: 'error' });
+    } finally {
+      setRejecting(false);
     }
   };
 
@@ -184,11 +215,15 @@ export default function GestionPermisos() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('¿Eliminar este permiso?')) return;
+    setDeletingId(id);
     try {
       await permisoApi.delete(id);
+      toast({ message: 'Permiso eliminado', type: 'success' });
       load();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al eliminar');
+      toast({ message: err.response?.data?.message || 'Error al eliminar', type: 'error' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -276,6 +311,7 @@ export default function GestionPermisos() {
       return;
     }
     setEditError('');
+    setSavingEdit(true);
     try {
       await permisoApi.update(editModal.permiso.id, {
         fecha_inicio: editFechaInicio,
@@ -288,6 +324,8 @@ export default function GestionPermisos() {
       load();
     } catch (err: any) {
       setEditError(err.response?.data?.message || 'Error al editar permiso');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -340,6 +378,15 @@ export default function GestionPermisos() {
     );
   };
 
+  const isProcessing = approvingId !== null || rejecting || deletingId !== null || savingEdit || uploading || importLoading || previewLoading;
+  const [showProcessing, setShowProcessing] = useState(false);
+  useEffect(() => {
+    let t: any;
+    if (isProcessing) setShowProcessing(true);
+    else t = setTimeout(() => setShowProcessing(false), 500);
+    return () => clearTimeout(t);
+  }, [isProcessing]);
+
   if (loading) return <LoadingSpinner message="Cargando permisos..." />;
 
   const columns = [
@@ -377,6 +424,14 @@ export default function GestionPermisos() {
 
   return (
     <div>
+      {showProcessing && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg px-8 py-6 flex flex-col items-center gap-3 shadow-xl">
+            <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
+            <p className="text-sm font-medium text-gray-700">Procesando...</p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Gestión de Permisos</h1>
         <div className="flex gap-2">
@@ -599,7 +654,7 @@ export default function GestionPermisos() {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => handleAprobar(p.id)} className="inline-flex items-center gap-1 px-3 py-1 bg-success-600 text-white rounded-lg text-sm hover:bg-success-700"><CheckCircle className="w-3.5 h-3.5" /> Aprobar</button>
+                      <button onClick={() => handleAprobar(p.id)} disabled={approvingId === p.id} className="inline-flex items-center gap-1 px-3 py-1 bg-success-600 text-white rounded-lg text-sm hover:bg-success-700 disabled:opacity-50">{approvingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Aprobar</button>
                       <button onClick={() => setRechazoModal({ id: p.id, open: true })} className="inline-flex items-center gap-1 px-3 py-1 bg-danger-600 text-white rounded-lg text-sm hover:bg-danger-700"><XCircle className="w-3.5 h-3.5" /> Rechazar</button>
                     </div>
                   </div>
@@ -630,8 +685,8 @@ export default function GestionPermisos() {
               required
             />
           </div>
-          <button onClick={handleRechazar} className="flex items-center justify-center gap-2 w-full py-2 bg-danger-600 hover:bg-danger-700 text-white rounded-lg">
-            <XCircle className="w-4 h-4" /> Rechazar Permiso
+          <button onClick={handleRechazar} disabled={rejecting} className="flex items-center justify-center gap-2 w-full py-2 bg-danger-600 hover:bg-danger-700 text-white rounded-lg disabled:opacity-50">
+            {rejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} {rejecting ? 'Rechazando...' : 'Rechazar Permiso'}
           </button>
         </div>
       </Modal>
@@ -714,8 +769,8 @@ export default function GestionPermisos() {
 
           {editError && <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm">{editError}</div>}
 
-          <button onClick={handleEditSave} className="flex items-center justify-center gap-2 w-full py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
-            <Pencil className="w-4 h-4" /> Guardar Cambios
+          <button onClick={handleEditSave} disabled={savingEdit} className="flex items-center justify-center gap-2 w-full py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg disabled:opacity-50">
+            {savingEdit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />} {savingEdit ? 'Guardando...' : 'Guardar Cambios'}
           </button>
         </div>
       </Modal>
