@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { permisoApi } from '../services/api';
 import { Permiso, Disponibilidad } from '../types';
-import { CalendarCheck, CalendarClock, CalendarDays, ClipboardList, ClipboardCheck, Clock, CheckCircle, XCircle, Trophy, AlertTriangle, Crown, Users, TrendingUp, Medal, Flame } from 'lucide-react';
+import { CalendarCheck, CalendarClock, CalendarDays, ClipboardList, ClipboardCheck, Clock, CheckCircle, XCircle, Trophy, AlertTriangle, Crown, Users, TrendingUp, Medal, Flame, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../components/Modal';
 import { formatDate } from '../utils/format';
@@ -26,6 +26,8 @@ export default function Dashboard() {
   const esAdmin = user?.rolId === 1 || user?.rolId === 2;
   const [indicadores, setIndicadores] = useState<any>(null);
   const [loadingIndicadores, setLoadingIndicadores] = useState(true);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const toggle = (k: string) => setCollapsed((p) => ({ ...p, [k]: !p[k] }));
 
   useEffect(() => {
     if (user?.rolId === 3) {
@@ -126,8 +128,14 @@ export default function Dashboard() {
           ) : !indicadores ? (
             <div className="bg-white rounded-lg shadow p-8 text-center text-gray-400"><AlertTriangle className="w-8 h-8 mx-auto mb-2" /><p className="text-sm">No se pudieron cargar los indicadores</p></div>
           ) : (
-          <div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <button onClick={() => toggle('resumen')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-left">
+                <span className="font-semibold text-gray-800 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary-600" /> Resumen</span>
+                {collapsed['resumen'] ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronUp className="w-4 h-4 text-gray-500" />}
+              </button>
+              {!collapsed['resumen'] && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 pt-0">
             <div className="bg-white rounded-lg shadow p-5 border-l-4 border-primary-500">
               <div className="flex items-center justify-between">
                 <div><p className="text-sm text-gray-500">Pendientes</p><p className="text-3xl font-bold text-primary-600 mt-1">{indicadores.pendientes}</p></div>
@@ -147,12 +155,19 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+              )}
+            </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg shadow p-5 text-white relative overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-lg shadow overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500">
+                <button onClick={() => toggle('top')} className="w-full flex items-center justify-between px-4 py-3 text-white text-left">
+                  <span className="font-semibold flex items-center gap-2"><Crown className="w-4 h-4" /> Top del mes</span>
+                  {collapsed['top'] ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </button>
+                {!collapsed['top'] && (
+                <div className="p-5 pt-0 text-white">
               <div className="flex items-start justify-between relative z-10">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white/80 flex items-center gap-1"><Crown className="w-4 h-4" /> Top del mes</p>
                   {indicadores.topMes ? (
                     <>
                       <p className="text-xl font-bold mt-1">{indicadores.topMes.user.nombres} {indicadores.topMes.user.apellido_paterno}</p>
@@ -168,10 +183,17 @@ export default function Dashboard() {
                 </div>
                 <Trophy className="w-16 h-16 text-white/20" />
               </div>
-            </div>
+                </div>
+                )}
+              </div>
 
-            <div className="bg-white rounded-lg shadow p-5">
-              <h4 className="font-semibold text-gray-800 flex items-center gap-2 mb-3"><Medal className="w-4 h-4 text-amber-500" /> Ranking del mes (Top 5)</h4>
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <button onClick={() => toggle('ranking')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-left">
+                  <span className="font-semibold text-gray-800 flex items-center gap-2"><Medal className="w-4 h-4 text-amber-500" /> Ranking del mes (Top 5)</span>
+                  {collapsed['ranking'] ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronUp className="w-4 h-4 text-gray-500" />}
+                </button>
+                {!collapsed['ranking'] && (
+                <div className="p-5 pt-0">
               {indicadores.rankingMes?.length ? indicadores.rankingMes.map((r: any, i: number) => (
                 <div key={r.user.id} className="flex items-center gap-3 py-2 border-b last:border-0">
                   <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-amber-100 text-amber-700' : i === 1 ? 'bg-gray-100 text-gray-600' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-50 text-gray-500'}`}>{i + 1}</span>
@@ -185,12 +207,19 @@ export default function Dashboard() {
                   </div>
                 </div>
               )) : <p className="text-sm text-gray-400 text-center py-4">Sin datos este mes</p>}
+                </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow p-5 border border-red-100">
-              <h4 className="font-semibold text-red-700 flex items-center gap-2 mb-3"><Flame className="w-4 h-4" /> Sin cupo disponible ({indicadores.agotados?.length || 0})</h4>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="bg-white rounded-lg shadow overflow-hidden border border-red-100">
+                <button onClick={() => toggle('agotados')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-left">
+                  <span className="font-semibold text-red-700 flex items-center gap-2"><Flame className="w-4 h-4" /> Sin cupo disponible ({indicadores.agotados?.length || 0})</span>
+                  {collapsed['agotados'] ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronUp className="w-4 h-4 text-gray-500" />}
+                </button>
+                {!collapsed['agotados'] && (
+                <div className="p-5 pt-0">
               {indicadores.agotados?.length ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {indicadores.agotados.map((u: any) => (
@@ -204,9 +233,16 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : <p className="text-sm text-gray-400 text-center py-6">Nadie ha agotado su cupo aún 🎉</p>}
-            </div>
-            <div className="bg-white rounded-lg shadow p-5 border border-amber-100">
-              <h4 className="font-semibold text-amber-700 flex items-center gap-2 mb-3"><AlertTriangle className="w-4 h-4" /> Por agotarse — 1 día restante ({indicadores.porAgotarse?.length || 0})</h4>
+                </div>
+                )}
+              </div>
+              <div className="bg-white rounded-lg shadow overflow-hidden border border-amber-100">
+                <button onClick={() => toggle('porAgotarse')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-left">
+                  <span className="font-semibold text-amber-700 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Por agotarse — 1 día restante ({indicadores.porAgotarse?.length || 0})</span>
+                  {collapsed['porAgotarse'] ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronUp className="w-4 h-4 text-gray-500" />}
+                </button>
+                {!collapsed['porAgotarse'] && (
+                <div className="p-5 pt-0">
               {indicadores.porAgotarse?.length ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {indicadores.porAgotarse.map((u: any) => (
@@ -220,8 +256,10 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : <p className="text-sm text-gray-400 text-center py-6">Nadie está por agotar su cupo</p>}
+                </div>
+                )}
+              </div>
             </div>
-          </div>
           </div>
         )}
         </div>

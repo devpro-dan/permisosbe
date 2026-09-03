@@ -71,6 +71,17 @@ function mensajeFeriado(feriado: { fecha: string; descripcion: string }): string
   return `La fecha ${fmtFecha(feriado.fecha)} corresponde a un feriado (${feriado.descripcion})`;
 }
 
+function calcDiasSolicitud(inicio: string, fin: string | undefined, tipo: string): number {
+  if (tipo === 'media') return 0.5;
+  if (!fin || fin === inicio) return 1;
+  const d1 = new Date(inicio + 'T12:00:00');
+  const d2 = new Date(fin + 'T12:00:00');
+  let count = 0;
+  const cur = new Date(d1);
+  while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); }
+  return Math.max(1, count);
+}
+
 function getReportFilters(body: any) {
   const b = body || {};
   return {
@@ -113,16 +124,21 @@ export const permisoController = {
         res.status(400).json({ message: 'La fecha de inicio no puede ser fin de semana' });
         return;
       }
-
-      const feriados = await feriadosEnRango(fecha_inicio, fecha_fin);
-      if (feriados.length > 0) {
-        res.status(400).json({ message: mensajeFeriado(feriados[0]) });
-        return;
+      {
+        const f = await feriadosEnRango(fecha_inicio, fecha_inicio);
+        if (f.length > 0) { res.status(400).json({ message: mensajeFeriado(f[0]) }); return; }
+      }
+      if (fecha_fin) {
+        if (isWeekend(fecha_fin)) { res.status(400).json({ message: 'La fecha de fin no puede ser fin de semana' }); return; }
+        const f = await feriadosEnRango(fecha_fin, fecha_fin);
+        if (f.length > 0) { res.status(400).json({ message: mensajeFeriado(f[0]) }); return; }
       }
 
       const disponibilidad = await permisoService.getAvailablePermisos(userId);
-      if (disponibilidad.available <= 0) {
-        res.status(400).json({ message: 'No tienes permisos disponibles para este año' });
+      const diasSolicitados = calcDiasSolicitud(fecha_inicio, fecha_fin, tipo_jornada);
+      if (diasSolicitados > disponibilidad.available) {
+        const reqStr = diasSolicitados === 0.5 ? 'media jornada' : String(diasSolicitados);
+        res.status(400).json({ message: `Solicita ${reqStr} día${diasSolicitados === 1 || diasSolicitados === 0.5 ? '' : 's'}, solo quedan ${disponibilidad.available} días disponibles de ${disponibilidad.max}` });
         return;
       }
 
@@ -132,8 +148,26 @@ export const permisoController = {
         return;
       }
 
+      let fechaFinAjustada: string | undefined = fecha_fin || undefined;
+      if (fechaFinAjustada) {
+        const diasHabilesSolicitados = calcDiasSolicitud(fecha_inicio, fechaFinAjustada, tipo_jornada);
+        let cur = new Date(fecha_inicio + 'T12:00:00');
+        let remaining = tipo_jornada === 'media' ? 0 : diasHabilesSolicitados - 1;
+        let safety = 0;
+        while (remaining > 0 && safety < 60) {
+          cur.setDate(cur.getDate() + 1);
+          const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+          if (isWeekend(iso)) { safety++; continue; }
+          const fer = await feriadosEnRango(iso, iso);
+          if (fer.length > 0) { safety++; continue; }
+          remaining--; safety++;
+        }
+        fechaFinAjustada = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+        if (tipo_jornada === 'media') fechaFinAjustada = fecha_inicio;
+      }
+
       const permiso = await permisoService.create({
-        user_id: userId, fecha_inicio, fecha_fin, tipo_jornada, motivo,
+        user_id: userId, fecha_inicio, fecha_fin: fechaFinAjustada, tipo_jornada, motivo,
       });
 
       try {
@@ -268,11 +302,14 @@ export const permisoController = {
         res.status(400).json({ message: 'La fecha de inicio no puede ser fin de semana' });
         return;
       }
-
-      const feriados = await feriadosEnRango(fecha_inicio, fecha_fin);
-      if (feriados.length > 0) {
-        res.status(400).json({ message: mensajeFeriado(feriados[0]) });
-        return;
+      {
+        const f = await feriadosEnRango(fecha_inicio, fecha_inicio);
+        if (f.length > 0) { res.status(400).json({ message: mensajeFeriado(f[0]) }); return; }
+      }
+      if (fecha_fin) {
+        if (isWeekend(fecha_fin)) { res.status(400).json({ message: 'La fecha de fin no puede ser fin de semana' }); return; }
+        const f = await feriadosEnRango(fecha_fin, fecha_fin);
+        if (f.length > 0) { res.status(400).json({ message: mensajeFeriado(f[0]) }); return; }
       }
 
       const { userRepository } = require('../repositories/user.repository');
@@ -283,8 +320,10 @@ export const permisoController = {
       }
 
       const disponibilidad = await permisoService.getAvailablePermisos(user_id);
-      if (disponibilidad.available <= 0) {
-        res.status(400).json({ message: 'El usuario no tiene permisos disponibles para este año' });
+      const diasSolicitados = calcDiasSolicitud(fecha_inicio, fecha_fin, tipo_jornada);
+      if (diasSolicitados > disponibilidad.available) {
+        const reqStr = diasSolicitados === 0.5 ? 'media jornada' : String(diasSolicitados);
+        res.status(400).json({ message: `Solicita ${reqStr} día${diasSolicitados === 1 || diasSolicitados === 0.5 ? '' : 's'}, solo quedan ${disponibilidad.available} días disponibles de ${disponibilidad.max}` });
         return;
       }
 
@@ -294,8 +333,26 @@ export const permisoController = {
         return;
       }
 
+      let fechaFinAjustada2: string | undefined = fecha_fin || undefined;
+      if (fechaFinAjustada2) {
+        const diasHabilesSolicitados = calcDiasSolicitud(fecha_inicio, fechaFinAjustada2, tipo_jornada);
+        let cur = new Date(fecha_inicio + 'T12:00:00');
+        let remaining = tipo_jornada === 'media' ? 0 : diasHabilesSolicitados - 1;
+        let safety = 0;
+        while (remaining > 0 && safety < 60) {
+          cur.setDate(cur.getDate() + 1);
+          const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+          if (isWeekend(iso)) { safety++; continue; }
+          const fer = await feriadosEnRango(iso, iso);
+          if (fer.length > 0) { safety++; continue; }
+          remaining--; safety++;
+        }
+        fechaFinAjustada2 = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+        if (tipo_jornada === 'media') fechaFinAjustada2 = fecha_inicio;
+      }
+
       const permiso = await permisoService.create({
-        user_id, fecha_inicio, fecha_fin, tipo_jornada, motivo,
+        user_id, fecha_inicio, fecha_fin: fechaFinAjustada2, tipo_jornada, motivo,
       });
 
       try {
@@ -349,10 +406,14 @@ export const permisoController = {
       const nuevaFechaInicio = fecha_inicio !== undefined ? fecha_inicio : permiso.fecha_inicio;
       const nuevaFechaFin = fecha_fin !== undefined ? fecha_fin : permiso.fecha_fin;
 
-      const feriados = await feriadosEnRango(nuevaFechaInicio, nuevaFechaFin);
-      if (feriados.length > 0) {
-        res.status(400).json({ message: mensajeFeriado(feriados[0]) });
-        return;
+      {
+        const f = await feriadosEnRango(nuevaFechaInicio, nuevaFechaInicio);
+        if (f.length > 0) { res.status(400).json({ message: mensajeFeriado(f[0]) }); return; }
+      }
+      if (nuevaFechaFin) {
+        if (isWeekend(nuevaFechaFin)) { res.status(400).json({ message: 'La fecha de fin no puede ser fin de semana' }); return; }
+        const f = await feriadosEnRango(nuevaFechaFin, nuevaFechaFin);
+        if (f.length > 0) { res.status(400).json({ message: mensajeFeriado(f[0]) }); return; }
       }
 
       const overlap = await permisoService.checkOverlap(permiso.user_id, nuevaFechaInicio, nuevaFechaFin, id);
@@ -833,8 +894,11 @@ export const permisoController = {
               else {
                 const userId = r.rows[0].id;
                 const disponibilidad = await permisoService.getAvailablePermisos(userId);
-                if (disponibilidad.available <= 0) error = 'El usuario no tiene permisos disponibles para este año';
-                else {
+                const diasNecesarios = tipoJornadaRaw === 'media' ? 0.5 : cantidadDias;
+                if (diasNecesarios > disponibilidad.available) {
+                  const reqStr = diasNecesarios === 0.5 ? 'media jornada' : String(diasNecesarios);
+                  error = `Solicita ${reqStr} día${diasNecesarios === 1 || diasNecesarios === 0.5 ? '' : 's'}, solo quedan ${disponibilidad.available} disponibles de ${disponibilidad.max}`;
+                } else {
                   const overlap = await permisoService.checkOverlap(userId, fecha_inicio, fecha_fin);
                   if (overlap) error = 'Ya tiene un permiso registrado para esa fecha';
                 }
@@ -931,7 +995,11 @@ export const permisoController = {
             else { errors.push({ fila: rowNumber, message: `Usuario no encontrado por RUT ${rutNorm}-${dvNorm}` }); continue; }
           }
           const disponibilidad = await permisoService.getAvailablePermisos(userId!);
-          if (disponibilidad.available <= 0) { errors.push({ fila: rowNumber, message: 'El usuario no tiene permisos disponibles para este año' }); continue; }
+          const diasNecesarios2 = tipoJornadaRaw === 'media' ? 0.5 : cantidadDias;
+          if (diasNecesarios2 > disponibilidad.available) {
+            const reqStr = diasNecesarios2 === 0.5 ? 'media jornada' : String(diasNecesarios2);
+            errors.push({ fila: rowNumber, message: `Solicita ${reqStr} día${diasNecesarios2 === 1 || diasNecesarios2 === 0.5 ? '' : 's'}, solo quedan ${disponibilidad.available} disponibles de ${disponibilidad.max}` }); continue;
+          }
           const overlap = await permisoService.checkOverlap(userId!, fecha_inicio, fecha_fin);
           if (overlap) { errors.push({ fila: rowNumber, message: 'Ya tiene un permiso registrado para esa fecha' }); continue; }
           try { await permisoService.create({ user_id: userId!, fecha_inicio, fecha_fin: fecha_fin || undefined, tipo_jornada: tipoJornadaRaw as any, motivo: motivoRaw }); created++; } catch (e: any) { errors.push({ fila: rowNumber, message: e.message || 'Error al crear permiso' }); }

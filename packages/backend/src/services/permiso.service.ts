@@ -23,17 +23,27 @@ function addComprobanteStatus<T extends { comprobante_url?: string | null }>(per
 export const permisoService = {
   async getAvailablePermisos(userId: number) {
     const config = await systemConfigRepository.findByClave('permisos_por_anio');
-    const maxPermisos = parseInt(config?.valor || '6', 10);
-
+    const maxDias = parseInt(config?.valor || '6', 10);
     const currentYear = new Date().getFullYear();
     const result = await pool.query(
-      `SELECT COUNT(*) as count FROM permisos_administrativos 
-       WHERE user_id = $1 AND EXTRACT(YEAR FROM fecha_solicitud) = $2`,
+      `SELECT fecha_inicio, fecha_fin, tipo_jornada FROM permisos_administrativos
+       WHERE user_id = $1 AND EXTRACT(YEAR FROM fecha_solicitud) = $2 AND estado != 'rechazado'`,
       [userId, currentYear]
     );
-
-    const used = parseInt(result.rows[0].count, 10);
-    return { max: maxPermisos, used, available: maxPermisos - used };
+    let used = 0;
+    for (const p of result.rows) {
+      const d1 = new Date(p.fecha_inicio + 'T12:00:00');
+      const d2 = new Date((p.fecha_fin || p.fecha_inicio) + 'T12:00:00');
+      let count = 0;
+      const cur = new Date(d1);
+      while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); }
+      if (count === 0) count = 1;
+      const dias = p.tipo_jornada === 'media' ? count * 0.5 : count;
+      used += dias;
+    }
+    used = Math.round(used * 10) / 10;
+    const available = Math.max(0, Math.round((maxDias - used) * 10) / 10);
+    return { max: maxDias, used, available };
   },
 
   async findByUser(userId: number) {
@@ -343,7 +353,7 @@ export const permisoService = {
          WHERE p.fecha_inicio >= $1 AND p.fecha_inicio <= $2 AND p.estado != 'rechazado'`,
         [startMes, endMes]
       ),
-      pool.query(`SELECT user_id, COUNT(*)::int as c FROM permisos_administrativos WHERE EXTRACT(YEAR FROM fecha_solicitud)=$1 GROUP BY user_id`, [year]),
+      pool.query(`SELECT user_id, fecha_inicio, fecha_fin, tipo_jornada FROM permisos_administrativos WHERE EXTRACT(YEAR FROM fecha_solicitud)=$1 AND estado != 'rechazado'`, [year]),
       pool.query(`SELECT id, nombres, apellido_paterno, apellido_materno, rut, dv, cargo FROM users WHERE COALESCE(is_suspended,false)=false ORDER BY apellido_paterno`),
     ]);
 
@@ -368,15 +378,24 @@ export const permisoService = {
     const topMes = rankingMes[0] || null;
 
     const usedMap: Record<number, number> = {};
-    for (const r of yearlyRes.rows) usedMap[r.user_id] = r.c;
+    for (const r of yearlyRes.rows) {
+      const d1 = new Date(r.fecha_inicio + 'T12:00:00');
+      const d2 = new Date((r.fecha_fin || r.fecha_inicio) + 'T12:00:00');
+      let count = 0;
+      const cur = new Date(d1);
+      while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); }
+      if (count === 0) count = 1;
+      const dias = r.tipo_jornada === 'media' ? count * 0.5 : count;
+      usedMap[r.user_id] = Math.round(((usedMap[r.user_id] || 0) + dias) * 10) / 10;
+    }
 
     const agotados: any[] = [];
     const porAgotarse: any[] = [];
     for (const u of usersRes.rows) {
-      const usados = usedMap[u.id] || 0;
-      const disponibles = Math.max(0, max - usados);
+      const usados = Math.round((usedMap[u.id] || 0) * 10) / 10;
+      const disponibles = Math.max(0, Math.round((max - usados) * 10) / 10);
       if (disponibles === 0 && usados > 0) agotados.push({ ...u, usados, disponibles, max });
-      else if (disponibles === 1) porAgotarse.push({ ...u, usados, disponibles, max });
+      else if (disponibles === 0.5 || disponibles === 1) porAgotarse.push({ ...u, usados, disponibles, max });
     }
 
     const aprobadosMesRes = await pool.query(`SELECT COUNT(*)::int as c FROM permisos_administrativos WHERE estado='aprobado' AND fecha_inicio >= $1 AND fecha_inicio <= $2`, [startMes, endMes]);
