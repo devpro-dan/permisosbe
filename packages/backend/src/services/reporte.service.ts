@@ -307,46 +307,103 @@ export const reporteService = {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
-
       doc.on('data', (chunk: Buffer) => buffers.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
-
       addReportFooter(doc, 50);
-
       const logoBottom = drawLogo(doc);
       if (logoBottom > 0) doc.y = logoBottom + 8;
-
-      const PW = doc.page.width - 100;
+      const ML = 50;
+      const PW = doc.page.width - ML * 2;
       const FOOTER_RESERVE = 22;
-      const ensureSpace = (h: number) => {
-        if (doc.y + h > doc.page.height - doc.page.margins.bottom - FOOTER_RESERVE) doc.addPage();
-      };
-
-      doc.fontSize(20).text('Reporte de Permisos Administrativos', { align: 'center' });
-      doc.moveDown();
-      doc.fontSize(12);
-      let blockH = doc.heightOfString(`Trabajador: ${usuario.nombres} ${usuario.apellido_paterno}`, { width: PW }) + doc.heightOfString(`RUT: ${usuario.rut}`, { width: PW }) + doc.heightOfString(`Año: ${new Date().getFullYear()}`, { width: PW }) + 12;
-      ensureSpace(blockH);
-      doc.text(`Trabajador: ${usuario.nombres} ${usuario.apellido_paterno}`);
-      doc.text(`RUT: ${usuario.rut}`);
-      doc.text(`Año: ${new Date().getFullYear()}`);
-      doc.moveDown();
-
-      doc.fontSize(10);
+      const HEADER_BLUE = '#60b0c0';
+      const BLACK = '#000000';
+      const FONT = 'Helvetica';
+      const BOLD = 'Helvetica-Bold';
+      const headerH = 24;
+      const widths = [28, 68, 68, 38, 62, 72, PW - 336];
+      const headers = ['N°', 'Desde', 'Hasta', 'Días', 'Jornada', 'Estado', 'Motivo'];
+      const estadoLabel = (e: string) => e === 'en_revision' ? 'En Revisión' : e === 'aprobado' ? 'Aprobado' : e === 'rechazado' ? 'Rechazado' : e;
+      const jornadaLabel = (j: string) => j === 'completa' ? 'Completa' : j === 'media' ? 'Media jornada' : j || '-';
+      function needsPage(h: number): boolean {
+        return doc.y + h > doc.page.height - doc.page.margins.bottom - FOOTER_RESERVE;
+      }
+      function drawCell(x: number, y: number, w: number, h: number, text: string, isHeader: boolean, fontSize: number, align: string) {
+        if (isHeader) {
+          doc.save();
+          doc.rect(x, y, w, h).fill(HEADER_BLUE);
+          doc.restore();
+        }
+        doc.strokeColor(BLACK).lineWidth(0.5).rect(x, y, w, h).stroke();
+        doc.font(isHeader ? BOLD : FONT).fontSize(fontSize).fillColor(BLACK);
+        const px = doc.x, py = doc.y;
+        const pad = 3;
+        const opts: any = { width: w - pad * 2 };
+        if (align === 'center') opts.align = 'center';
+        const th = doc.heightOfString(text, opts);
+        const ty = h > th + pad * 2 ? y + (h - th) / 2 : y + pad;
+        doc.text(text, x + pad, ty, opts);
+        doc.x = px; doc.y = py;
+      }
+      function drawHeaderRow() {
+        if (needsPage(headerH)) doc.addPage();
+        const y = doc.y;
+        let x0 = ML;
+        headers.forEach((h, i) => {
+          drawCell(x0, y, widths[i], headerH, h, true, 8, 'center');
+          x0 += widths[i];
+        });
+        doc.y = y + headerH;
+      }
+      function rowHeight(row: string[]): number {
+        doc.font(FONT).fontSize(8);
+        let max = 18;
+        row.forEach((val, i) => {
+          const h = doc.heightOfString(String(val), { width: widths[i] - 6 }) + 8;
+          if (h > max) max = h;
+        });
+        return Math.max(max, 20);
+      }
+      doc.fontSize(19).font(BOLD).fillColor(BLACK).text('Reporte de Permisos Administrativos', ML, doc.y, { align: 'center', width: PW });
+      doc.moveDown(0.4);
+      doc.font(FONT).fontSize(10).fillColor(BLACK);
+      const infoLines = [
+        `Trabajador: ${usuario.nombres} ${usuario.apellido_paterno}`,
+        `RUT: ${usuario.rut}`,
+        `Año: ${new Date().getFullYear()}  |  Registros: ${permisos.length}`,
+      ];
+      let infoH = 0;
+      infoLines.forEach(l => { infoH += doc.heightOfString(l, { width: PW }) + 2; });
+      if (needsPage(infoH + 8)) doc.addPage();
+      infoLines.forEach(l => doc.text(l, ML, doc.y, { width: PW }));
+      doc.moveDown(0.6);
       if (permisos.length === 0) {
-        ensureSpace(16);
-        doc.text('No hay permisos registrados en este período.');
+        if (needsPage(16)) doc.addPage();
+        doc.fontSize(10).text('No hay permisos registrados en este período.', ML, doc.y, { width: PW });
       } else {
-        permisos.forEach((p, i) => {
-          const line = `${i + 1}. ${p.fecha_inicio}${p.fecha_fin ? ` - ${p.fecha_fin}` : ''} | ${p.tipo_jornada} | ${p.estado} | ${p.motivo}`;
-          const h = doc.heightOfString(line, { width: PW }) + 8;
-          ensureSpace(h);
-          doc.text(line);
-          doc.moveDown(0.5);
+        drawHeaderRow();
+        permisos.forEach((p, idx) => {
+          const row = [
+            String(idx + 1),
+            fmtDate(p.fecha_inicio),
+            p.fecha_fin ? fmtDate(p.fecha_fin) : '-',
+            String(calcularDias(p.fecha_inicio, p.fecha_fin)),
+            jornadaLabel(p.tipo_jornada),
+            estadoLabel(p.estado),
+            p.motivo || '-',
+          ];
+          const rh = rowHeight(row);
+          if (needsPage(rh)) drawHeaderRow();
+          const y = doc.y;
+          let x0 = ML;
+          row.forEach((val, i) => {
+            const align = i === 0 || i === 3 ? 'center' : i === 6 ? 'left' : 'center';
+            drawCell(x0, y, widths[i], rh, String(val), false, 8, align);
+            x0 += widths[i];
+          });
+          doc.y = y + rh;
         });
       }
-
       doc.end();
     });
   },
@@ -433,7 +490,10 @@ export const reporteService = {
 
       const anio = new Date().getFullYear();
       const fechaActual = new Date();
-      const dias = calcularDias(permiso.fecha_inicio, permiso.fecha_fin);
+      const diasNum = permiso.tipo_jornada === 'media' ? 0.5 : calcularDias(permiso.fecha_inicio, permiso.fecha_fin);
+      const diasTexto = diasNum === 0.5 ? 'media' : String(diasNum);
+      const diasPalabra = diasNum === 1 ? 'día' : 'días';
+      const dias = diasNum;
       const fechaInicio = fmtDate(permiso.fecha_inicio);
       const fechaFin = permiso.fecha_fin ? fmtDate(permiso.fecha_fin) : fechaInicio;
 
@@ -592,8 +652,8 @@ export const reporteService = {
       // Row 1: Por + day count + text + start date + text + end date
       row(mpRowH, [
         { x: ML, w: g0, text: 'Por', bg: GOLD, bold: true, size: 11 },
-        { x: ML + g0, w: g1, text: String(dias), bold: true, size: 11, align: 'center' },
-        { x: ML + g0 + g1, w: g2, text: `${dias === 1 ? 'día' : 'días'}, a contar desde el`, size: 11 },
+        { x: ML + g0, w: g1, text: diasTexto, bold: true, size: 11, align: 'center' },
+        { x: ML + g0 + g1, w: g2, text: `${diasNum === 0.5 ? 'día' : diasNum === 1 ? 'día' : 'días'}, a contar desde el`, size: 11 },
         { x: ML + g0 + g1 + g2, w: g3, text: fechaInicio, bold: true, size: 11, align: 'center' },
         { x: ML + g0 + g1 + g2 + g3, w: g4, text: 'hasta el', size: 11 },
         { x: ML + g0 + g1 + g2 + g3 + g4, w: g5, text: fechaFin, bold: true, size: 11, align: 'center' },
@@ -615,7 +675,7 @@ export const reporteService = {
       // Row 1: 4 cells spanning full PW
       row(sRowH, [
         { x: ML, w: 170, text: 'Total, días solicitados', bg: YELLOW, bold: false, size: 10 },
-        { x: ML + 170, w: 80, text: String(dias), bold: true, size: 11, align: 'center' },
+        { x: ML + 170, w: 80, text: diasTexto, bold: true, size: 11, align: 'center' },
         { x: ML + 170 + 80, w: 190, text: 'Total, días autorizados', bg: YELLOW, bold: false, size: 10 },
         { x: ML + 170 + 80 + 190, w: PW - 170 - 80 - 190, text: '', bold: false, size: 11, align: 'center' },
       ]);
@@ -651,8 +711,8 @@ export const reporteService = {
       ]);
       doc.y += 4;
 
-      // === VISTOS ===
-       { const t='VISTOS: El D.F.L. N°1-3063 de 1980 del Ministerio del Interior, Artículo 40° D.F.L. N°1 de 1996 del Ministerio de Educación, Estatuto de los Profesionales de la Educación, lo estipulado en el Contrato Individual de Trabajo (personal no docente), lo dispuesto en las Leyes 18.883, 19.465, Ley 18.695, Orgánica Constitucional de Municipalidades y sus modificaciones posteriores, y las facultades que me confiere la designación como directora del Establecimiento. R E S U E L V O   QUE, Autorícese la presente solicitud de permiso desde '+fechaInicio+' hasta '+fechaFin+' año '+anio+', por '+dias+' '+(dias===1?'día':'días')+', CON/SIN goce de remuneraciones. OBSERVACIÓN IMPORTANTE: 1. Este formulario se debe llenar en duplicado. 2. Ningún funcionario puede abandonar el servicio, si no ha sido autorizado formalmente para hacer uso del permiso solicitado.'; certEnsure(doc.heightOfString(t,{width:PW})+40); }
+       // === VISTOS ===
+        { const t='VISTOS: El D.F.L. N°1-3063 de 1980 del Ministerio del Interior, Artículo 40° D.F.L. N°1 de 1996 del Ministerio de Educación, Estatuto de los Profesionales de la Educación, lo estipulado en el Contrato Individual de Trabajo (personal no docente), lo dispuesto en las Leyes 18.883, 19.465, Ley 18.695, Orgánica Constitucional de Municipalidades y sus modificaciones posteriores, y las facultades que me confiere la designación como directora del Establecimiento. R E S U E L V O   QUE, Autorícese la presente solicitud de permiso desde '+fechaInicio+' hasta '+fechaFin+' año '+anio+', por '+diasTexto+' '+diasPalabra+', CON/SIN goce de remuneraciones. OBSERVACIÓN IMPORTANTE: 1. Este formulario se debe llenar en duplicado. 2. Ningún funcionario puede abandonar el servicio, si no ha sido autorizado formalmente para hacer uso del permiso solicitado.'; certEnsure(doc.heightOfString(t,{width:PW})+40); }
         doc.font(BOLD).fontSize(10).text('VISTOS:', ML, doc.y, { continued: true });
         doc.font(FONT).fontSize(9).text(
          'El D.F.L. N°1-3063 de 1980 del Ministerio del Interior, Artículo 40° D.F.L. N°1 de 1996 del Ministerio de Educación, ' +
@@ -664,9 +724,9 @@ export const reporteService = {
        doc.moveDown(0.4);
         doc.font(FONT).fontSize(10).text('R E S U E L V O   QUE,', ML, doc.y, { width: PW });
        doc.moveDown(0.2);
-       doc.font(FONT).fontSize(10).text(
-         `Autorícese la presente solicitud de permiso desde ${fechaInicio} hasta ${fechaFin} año ${anio}, ` +
-         `por ${dias} ${dias === 1 ? 'día' : 'días'}, CON/SIN goce de remuneraciones.`,
+        doc.font(FONT).fontSize(10).text(
+          `Autorícese la presente solicitud de permiso desde ${fechaInicio} hasta ${fechaFin} año ${anio}, ` +
+          `por ${diasTexto} ${diasPalabra}, CON/SIN goce de remuneraciones.`,
          ML, doc.y, { width: PW }
        );
        doc.moveDown(0.6);

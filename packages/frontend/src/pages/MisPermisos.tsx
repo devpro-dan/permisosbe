@@ -4,6 +4,7 @@ import { Permiso, Disponibilidad } from '../types';
 import { DataTable } from '../components/DataTable';
 import { MobileCard } from '../components/MobileCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { Modal } from '../components/Modal';
 import { FileText, FileSpreadsheet, FileCheck } from 'lucide-react';
 import { formatDate } from '../utils/format';
 
@@ -17,6 +18,11 @@ export default function MisPermisos() {
   const [permisos, setPermisos] = useState<Permiso[]>([]);
   const [disponibilidad, setDisponibilidad] = useState<Disponibilidad | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showReporteModal, setShowReporteModal] = useState(false);
+  const [anos, setAnos] = useState<number[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [anosLoading, setAnosLoading] = useState(false);
+  const [generating, setGenerating] = useState<'pdf' | 'excel' | null>(null);
 
   useEffect(() => {
     permisoApi.misPermisos()
@@ -28,13 +34,39 @@ export default function MisPermisos() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDownloadPDF = async () => {
+  const openReporteModal = async () => {
+    setShowReporteModal(true);
+    setAnosLoading(true);
     try {
-      const res = await permisoApi.reportePDF();
+      const res = await permisoApi.reporteAnos();
+      const lista: number[] = res.data.anos || [];
+      setAnos(lista);
+      if (lista.length > 0) setSelectedYear(lista[0]);
+    } catch {
+      const y = new Date().getFullYear();
+      setAnos([y]);
+      setSelectedYear(y);
+    } finally {
+      setAnosLoading(false);
+    }
+  };
+
+  const handleDownloadPDF = async (year?: number) => {
+    const y = year ?? selectedYear;
+    setGenerating('pdf');
+    try {
+      const res = await permisoApi.reportePDF(y);
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      window.open(url, '_blank');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `permisos_${y}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setShowReporteModal(false);
     } catch (err) {
       console.error(err);
+    } finally {
+      setGenerating(null);
     }
   };
 
@@ -68,16 +100,22 @@ export default function MisPermisos() {
     }
   };
 
-  const handleDownloadExcel = async () => {
+  const handleDownloadExcel = async (year?: number) => {
+    const y = year ?? selectedYear;
+    setGenerating('excel');
     try {
-      const res = await permisoApi.reporteExcel();
+      const res = await permisoApi.reporteExcel(y);
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'permisos.xlsx';
+      a.download = `permisos_${y}.xlsx`;
       a.click();
+      URL.revokeObjectURL(url);
+      setShowReporteModal(false);
     } catch (err) {
       console.error(err);
+    } finally {
+      setGenerating(null);
     }
   };
 
@@ -143,14 +181,37 @@ export default function MisPermisos() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Mis Permisos</h1>
         <div className="flex gap-2">
-          <button onClick={handleDownloadPDF} className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
-            <FileText className="w-4 h-4" /> PDF
-          </button>
-          <button onClick={handleDownloadExcel} className="inline-flex items-center gap-1.5 px-4 py-2 bg-success-600 text-white rounded-lg text-sm hover:bg-success-700 transition-colors">
-            <FileSpreadsheet className="w-4 h-4" /> Excel
+          <button onClick={openReporteModal} className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
+            <FileText className="w-4 h-4" /> Generar informe
           </button>
         </div>
       </div>
+      <Modal isOpen={showReporteModal} onClose={() => setShowReporteModal(false)} title="Generar informe">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
+            {anosLoading ? (
+              <p className="text-sm text-gray-500">Cargando años...</p>
+            ) : (
+              <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                {anos.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            )}
+            <p className="text-xs text-gray-400 mt-1">Años con permisos registrados (precargado desde BD)</p>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setShowReporteModal(false)} className="px-4 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-50">Cancelar</button>
+            <button onClick={() => handleDownloadExcel()} disabled={generating !== null} className="inline-flex items-center gap-1.5 px-4 py-2 bg-success-600 text-white rounded-lg text-sm hover:bg-success-700 disabled:opacity-50">
+              <FileSpreadsheet className="w-4 h-4" /> {generating === 'excel' ? 'Generando...' : 'Excel'}
+            </button>
+            <button onClick={() => handleDownloadPDF()} disabled={generating !== null} className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50">
+              <FileText className="w-4 h-4" /> {generating === 'pdf' ? 'Generando...' : 'Generar informe'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {disponibilidad && (
         <div className="grid grid-cols-3 gap-4 mb-6">

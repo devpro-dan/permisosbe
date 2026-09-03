@@ -12,6 +12,8 @@ router.post('/import/preview', authorize('permisos_administrativos', 'view'), pe
 router.post('/import', authorize('permisos_administrativos', 'create'), permisoController.importarPlanilla);
 
 router.get('/mis-permisos', permisoController.misPermisos);
+router.get('/reporte/anos', permisoController.reporteAnos);
+router.get('/dashboard/indicadores', permisoController.dashboardIndicadores);
 router.post('/solicitar', permisoController.solicitar);
 router.post('/registrar-para-usuario', authorize('permisos_administrativos', 'create'), permisoController.solicitarParaUsuario);
 router.post('/reporte/pdf', permisoController.reportePDF);

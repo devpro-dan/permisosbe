@@ -503,6 +503,25 @@ export const permisoController = {
     }
   },
 
+  async reporteAnos(req: Request, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const anos = await permisoService.getAnosDisponibles(userId);
+      res.json({ anos });
+    } catch (error) {
+      res.status(500).json({ message: 'Error al obtener años disponibles' });
+    }
+  },
+
+  async dashboardIndicadores(req: Request, res: Response) {
+    try {
+      const data = await permisoService.getDashboardIndicadores();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al obtener indicadores' });
+    }
+  },
+
   async reportePDF(req: Request, res: Response) {
     try {
       const userId = req.user!.userId;

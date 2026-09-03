@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { permisoApi } from '../services/api';
 import { Permiso, Disponibilidad } from '../types';
-import { CalendarCheck, CalendarClock, CalendarDays, ClipboardList, ClipboardCheck, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { CalendarCheck, CalendarClock, CalendarDays, ClipboardList, ClipboardCheck, Clock, CheckCircle, XCircle, Trophy, AlertTriangle, Crown, Users, TrendingUp, Medal, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../components/Modal';
 import { formatDate } from '../utils/format';
@@ -24,6 +24,8 @@ export default function Dashboard() {
   const [motivoRechazo, setMotivoRechazo] = useState('');
 
   const esAdmin = user?.rolId === 1 || user?.rolId === 2;
+  const [indicadores, setIndicadores] = useState<any>(null);
+  const [loadingIndicadores, setLoadingIndicadores] = useState(true);
 
   useEffect(() => {
     if (user?.rolId === 3) {
@@ -36,6 +38,10 @@ export default function Dashboard() {
         .then((res) => setPendientes(res.data.filter((p: Permiso) => p.estado === 'en_revision')))
         .catch(() => {})
         .finally(() => setLoadingPendientes(false));
+      permisoApi.dashboardIndicadores()
+        .then((res) => setIndicadores(res.data))
+        .catch(() => {})
+        .finally(() => setLoadingIndicadores(false));
     }
   }, [user]);
 
@@ -109,6 +115,115 @@ export default function Dashboard() {
           >
             <ClipboardList className="w-4 h-4" /> Solicitar Permiso
           </button>
+        </div>
+      )}
+
+      {esAdmin && (
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary-600" /> Indicadores</h3>
+          {loadingIndicadores ? (
+            <div className="bg-white rounded-lg shadow p-8 text-center text-gray-400"><Clock className="w-8 h-8 mx-auto mb-2 animate-pulse" /><p className="text-sm">Cargando indicadores...</p></div>
+          ) : !indicadores ? (
+            <div className="bg-white rounded-lg shadow p-8 text-center text-gray-400"><AlertTriangle className="w-8 h-8 mx-auto mb-2" /><p className="text-sm">No se pudieron cargar los indicadores</p></div>
+          ) : (
+          <div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white rounded-lg shadow p-5 border-l-4 border-primary-500">
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Pendientes</p><p className="text-3xl font-bold text-primary-600 mt-1">{indicadores.pendientes}</p></div>
+                <Clock className="w-10 h-10 text-primary-200" />
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-5 border-l-4 border-emerald-500">
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Aprobados este mes</p><p className="text-3xl font-bold text-emerald-600 mt-1">{indicadores.aprobadosMes}</p></div>
+                <CheckCircle className="w-10 h-10 text-emerald-200" />
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-5 border-l-4 border-red-500">
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Sin cupo ({indicadores.agotados?.length || 0})</p><p className="text-3xl font-bold text-red-600 mt-1">{indicadores.agotados?.length || 0}</p><p className="text-xs text-gray-400">de {indicadores.totalUsuarios} usuarios</p></div>
+                <AlertTriangle className="w-10 h-10 text-red-200" />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg shadow p-5 text-white relative overflow-hidden">
+              <div className="flex items-start justify-between relative z-10">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-white/80 flex items-center gap-1"><Crown className="w-4 h-4" /> Top del mes</p>
+                  {indicadores.topMes ? (
+                    <>
+                      <p className="text-xl font-bold mt-1">{indicadores.topMes.user.nombres} {indicadores.topMes.user.apellido_paterno}</p>
+                      <p className="text-sm text-white/80">{indicadores.topMes.user.cargo || '—'} · {indicadores.topMes.user.rut}-{indicadores.topMes.user.dv}</p>
+                      <div className="mt-3 flex items-center gap-3">
+                        <span className="bg-white/20 backdrop-blur px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1"><Trophy className="w-4 h-4" /> {indicadores.topMes.count} permiso{indicadores.topMes.count !== 1 ? 's' : ''}</span>
+                        <span className="bg-white text-orange-600 px-3 py-1 rounded-full text-sm font-bold">{indicadores.topMes.dias} día{indicadores.topMes.dias !== 1 ? 's' : ''}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm mt-2 text-white/80">Sin permisos este mes</p>
+                  )}
+                </div>
+                <Trophy className="w-16 h-16 text-white/20" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-5">
+              <h4 className="font-semibold text-gray-800 flex items-center gap-2 mb-3"><Medal className="w-4 h-4 text-amber-500" /> Ranking del mes (Top 5)</h4>
+              {indicadores.rankingMes?.length ? indicadores.rankingMes.map((r: any, i: number) => (
+                <div key={r.user.id} className="flex items-center gap-3 py-2 border-b last:border-0">
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-amber-100 text-amber-700' : i === 1 ? 'bg-gray-100 text-gray-600' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-50 text-gray-500'}`}>{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{r.user.nombres} {r.user.apellido_paterno}</p>
+                    <p className="text-xs text-gray-400 truncate">{r.user.cargo || '—'}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-gray-800">{r.count} <span className="text-xs font-normal text-gray-500">perm.</span></p>
+                    <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1"><div className="h-full bg-primary-500" style={{ width: `${Math.min(100, (r.count / (indicadores.rankingMes[0]?.count || 1)) * 100)}%` }} /></div>
+                  </div>
+                </div>
+              )) : <p className="text-sm text-gray-400 text-center py-4">Sin datos este mes</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <div className="bg-white rounded-lg shadow p-5 border border-red-100">
+              <h4 className="font-semibold text-red-700 flex items-center gap-2 mb-3"><Flame className="w-4 h-4" /> Sin cupo disponible ({indicadores.agotados?.length || 0})</h4>
+              {indicadores.agotados?.length ? (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {indicadores.agotados.map((u: any) => (
+                    <div key={u.id} className="flex items-center justify-between p-2.5 bg-red-50 rounded-lg border border-red-100">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{u.nombres} {u.apellido_paterno} {u.apellido_materno || ''}</p>
+                        <p className="text-xs text-gray-500">{u.rut}-{u.dv} · {u.cargo || '—'}</p>
+                      </div>
+                      <span className="shrink-0 bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{u.usados}/{u.max} usados</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-sm text-gray-400 text-center py-6">Nadie ha agotado su cupo aún 🎉</p>}
+            </div>
+            <div className="bg-white rounded-lg shadow p-5 border border-amber-100">
+              <h4 className="font-semibold text-amber-700 flex items-center gap-2 mb-3"><AlertTriangle className="w-4 h-4" /> Por agotarse — 1 día restante ({indicadores.porAgotarse?.length || 0})</h4>
+              {indicadores.porAgotarse?.length ? (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {indicadores.porAgotarse.map((u: any) => (
+                    <div key={u.id} className="flex items-center justify-between p-2.5 bg-amber-50 rounded-lg border border-amber-100">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{u.nombres} {u.apellido_paterno}</p>
+                        <p className="text-xs text-gray-500">{u.rut}-{u.dv} · {u.cargo || '—'}</p>
+                      </div>
+                      <span className="shrink-0 bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">{u.usados}/{u.max}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-sm text-gray-400 text-center py-6">Nadie está por agotar su cupo</p>}
+            </div>
+          </div>
+          </div>
+        )}
         </div>
       )}
 

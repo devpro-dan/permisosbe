@@ -160,6 +160,18 @@ export const permisoService = {
     return result.rows;
   },
 
+  async getAnosDisponibles(userId: number): Promise<number[]> {
+    const result = await pool.query(
+      `SELECT DISTINCT EXTRACT(YEAR FROM fecha_solicitud)::int AS year
+       FROM permisos_administrativos WHERE user_id = $1 ORDER BY year DESC`,
+      [userId]
+    );
+    const years = result.rows.map((r: any) => r.year);
+    const current = new Date().getFullYear();
+    if (!years.includes(current)) years.unshift(current);
+    return years;
+  },
+
   async getResumenTrabajadores(filters: { employee?: string; startDate?: string; endDate?: string; year?: number; cargo?: string }) {
     const config = await systemConfigRepository.findByClave('permisos_por_anio');
     const maxDias = parseInt(config?.valor || '6', 10);
@@ -259,7 +271,7 @@ export const permisoService = {
       const d2 = Math.min(new Date((p.fecha_fin || p.fecha_inicio) + 'T12:00:00').getTime(), new Date(end + 'T12:00:00').getTime());
       const diffDays = Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
       const dias = p.tipo_jornada === 'media' ? diffDays * 0.5 : diffDays;
-      const diasStr = Number.isInteger(dias) ? String(dias) : String(Math.round(dias * 10) / 10).replace('.', ',');
+      const diasStr = dias === 0.5 ? 'media' : Number.isInteger(dias) ? String(dias) : String(Math.round(dias * 10) / 10).replace('.', ',');
       return {
         nombre: `${p.nombres} ${p.apellido_paterno}${p.apellido_materno ? ` ${p.apellido_materno}` : ''}`.trim(),
         dias: diasStr,
@@ -311,5 +323,77 @@ export const permisoService = {
       values
     );
     return result.rows;
+  },
+
+  async getDashboardIndicadores() {
+    const config = await systemConfigRepository.findByClave('permisos_por_anio');
+    const max = parseInt(config?.valor || '6', 10);
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const startMes = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endMes = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    const [pendientesRes, mesRes, yearlyRes, usersRes] = await Promise.all([
+      pool.query(`SELECT COUNT(*)::int as c FROM permisos_administrativos WHERE estado='en_revision'`),
+      pool.query(
+        `SELECT p.*, u.nombres, u.apellido_paterno, u.apellido_materno, u.rut, u.dv, u.cargo
+         FROM permisos_administrativos p JOIN users u ON u.id=p.user_id
+         WHERE p.fecha_inicio >= $1 AND p.fecha_inicio <= $2 AND p.estado != 'rechazado'`,
+        [startMes, endMes]
+      ),
+      pool.query(`SELECT user_id, COUNT(*)::int as c FROM permisos_administrativos WHERE EXTRACT(YEAR FROM fecha_solicitud)=$1 GROUP BY user_id`, [year]),
+      pool.query(`SELECT id, nombres, apellido_paterno, apellido_materno, rut, dv, cargo FROM users WHERE COALESCE(is_suspended,false)=false ORDER BY apellido_paterno`),
+    ]);
+
+    const calcDias = (p: any): number => {
+      const d1 = new Date(p.fecha_inicio + 'T12:00:00');
+      const d2 = new Date((p.fecha_fin || p.fecha_inicio) + 'T12:00:00');
+      let count = 0;
+      const cur = new Date(d1);
+      while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); }
+      if (count === 0) count = 1;
+      return p.tipo_jornada === 'media' ? count * 0.5 : count;
+    };
+
+    const byUserMes: Record<number, { user: any; count: number; dias: number }> = {};
+    for (const p of mesRes.rows) {
+      const uid = p.user_id;
+      if (!byUserMes[uid]) byUserMes[uid] = { user: { id: uid, nombres: p.nombres, apellido_paterno: p.apellido_paterno, apellido_materno: p.apellido_materno, rut: p.rut, dv: p.dv, cargo: p.cargo }, count: 0, dias: 0 };
+      byUserMes[uid].count += 1;
+      byUserMes[uid].dias += calcDias(p);
+    }
+    const rankingMes = Object.values(byUserMes).sort((a, b) => b.count - a.count || b.dias - a.dias).slice(0, 5);
+    const topMes = rankingMes[0] || null;
+
+    const usedMap: Record<number, number> = {};
+    for (const r of yearlyRes.rows) usedMap[r.user_id] = r.c;
+
+    const agotados: any[] = [];
+    const porAgotarse: any[] = [];
+    for (const u of usersRes.rows) {
+      const usados = usedMap[u.id] || 0;
+      const disponibles = Math.max(0, max - usados);
+      if (disponibles === 0 && usados > 0) agotados.push({ ...u, usados, disponibles, max });
+      else if (disponibles === 1) porAgotarse.push({ ...u, usados, disponibles, max });
+    }
+
+    const aprobadosMesRes = await pool.query(`SELECT COUNT(*)::int as c FROM permisos_administrativos WHERE estado='aprobado' AND fecha_inicio >= $1 AND fecha_inicio <= $2`, [startMes, endMes]);
+    const rechazadosMesRes = await pool.query(`SELECT COUNT(*)::int as c FROM permisos_administrativos WHERE estado='rechazado' AND fecha_inicio >= $1 AND fecha_inicio <= $2`, [startMes, endMes]);
+
+    return {
+      max,
+      year,
+      month,
+      pendientes: pendientesRes.rows[0].c,
+      aprobadosMes: aprobadosMesRes.rows[0].c,
+      rechazadosMes: rechazadosMesRes.rows[0].c,
+      topMes,
+      rankingMes,
+      agotados,
+      porAgotarse,
+      totalUsuarios: usersRes.rows.length,
+    };
   },
 };
