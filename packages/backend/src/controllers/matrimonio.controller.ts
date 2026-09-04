@@ -4,6 +4,7 @@ import fs from 'fs';
 import multer from 'multer';
 import { matrimonioService, DIAS_MATRIMONIO } from '../services/matrimonio.service';
 import { auditLogService } from '../services/auditLog.service';
+import { emailService } from '../services/email.service';
 
 const UPLOADS_DIR = path.resolve(
   (() => {
@@ -83,6 +84,13 @@ export const matrimonioController = {
       const overlap = await matrimonioService.checkOverlap(userId, fecha_inicio, fecha_fin);
       if (overlap) { res.status(400).json({ message: 'Ya tienes un permiso registrado para esa fecha' }); return; }
       const permiso = await matrimonioService.create({ user_id: userId, fecha_inicio, fecha_fin, motivo });
+      try {
+        const { userRepository } = require('../repositories/user.repository');
+        const user = await userRepository.findById(userId);
+        if (user) {
+          try { await emailService.sendJefaturaNotificacion([{ ...permiso, fecha_inicio, fecha_fin, motivo, estado: 'en_revision' }], [user], 'matrimonio'); } catch {}
+        }
+      } catch {}
       try { await auditLogService.register(req, 'create', 'permiso_matrimonio', permiso.id, `Solicitó permiso matrimonio: ${fecha_inicio} - ${fecha_fin}`); } catch {}
       res.status(201).json(permiso);
     } catch { res.status(500).json({ message: 'Error al solicitar permiso de matrimonio' }); }
@@ -105,6 +113,9 @@ export const matrimonioController = {
       const overlap = await matrimonioService.checkOverlap(user_id, fecha_inicio, fecha_fin);
       if (overlap) { res.status(400).json({ message: 'El usuario ya tiene un permiso registrado para esa fecha' }); return; }
       const permiso = await matrimonioService.create({ user_id, fecha_inicio, fecha_fin, motivo });
+      try {
+        try { await emailService.sendJefaturaNotificacion([{ ...permiso, fecha_inicio, fecha_fin, motivo, estado: 'en_revision' }], [targetUser], 'matrimonio'); } catch {}
+      } catch {}
       try { await auditLogService.register(req, 'create_for_user', 'permiso_matrimonio', permiso.id, `Registró permiso matrimonio para usuario #${user_id}`); } catch {}
       res.status(201).json(permiso);
     } catch { res.status(500).json({ message: 'Error al registrar permiso de matrimonio' }); }
@@ -123,6 +134,13 @@ export const matrimonioController = {
       const id = parseInt(req.params.id);
       const permiso = await matrimonioService.updateEstado(id, 'aprobado');
       if (!permiso) { res.status(404).json({ message: 'Permiso no encontrado' }); return; }
+      try {
+        const { userRepository } = require('../repositories/user.repository');
+        const user = await userRepository.findById(permiso.user_id);
+        if (user?.email) {
+          await emailService.sendPermisoNotification(user.email, 'aprobado', permiso, user.nombres, undefined, 'matrimonio');
+        }
+      } catch {}
       try { await auditLogService.register(req, 'approve', 'permiso_matrimonio', id, `Aprobó permiso matrimonio #${id}`); } catch {}
       res.json(permiso);
     } catch { res.status(500).json({ message: 'Error al aprobar permiso' }); }
@@ -135,6 +153,13 @@ export const matrimonioController = {
       if (!motivo_rechazo) { res.status(400).json({ message: 'Motivo de rechazo requerido' }); return; }
       const permiso = await matrimonioService.updateEstado(id, 'rechazado', motivo_rechazo);
       if (!permiso) { res.status(404).json({ message: 'Permiso no encontrado' }); return; }
+      try {
+        const { userRepository } = require('../repositories/user.repository');
+        const user = await userRepository.findById(permiso.user_id);
+        if (user?.email) {
+          await emailService.sendPermisoNotification(user.email, 'rechazado', permiso, user.nombres, undefined, 'matrimonio');
+        }
+      } catch {}
       try { await auditLogService.register(req, 'reject', 'permiso_matrimonio', id, `Rechazó permiso matrimonio #${id}`); } catch {}
       res.json(permiso);
     } catch { res.status(500).json({ message: 'Error al rechazar permiso' }); }

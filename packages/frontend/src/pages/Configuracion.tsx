@@ -9,6 +9,8 @@ const CONFIG_META: Record<string, { label: string; type: string; desc: string; g
   permisos_por_anio: { label: 'Permisos por Año', type: 'number', desc: 'Cantidad máxima de permisos administrativos por año', group: 'Sistema' },
   duracion_sesion_minutos: { label: 'Duración de Sesión (minutos)', type: 'number', desc: 'Duración máxima de la sesión de usuario en minutos', group: 'Sesión' },
   dias_acceso: { label: 'Días de Acceso', type: 'text', desc: 'Días de la semana permitidos (1=Lunes, 7=Domingo). Separar por comas. Ej: 1,2,3,4,5', group: 'Sesión' },
+  jefatura_notificacion_email: { label: 'Correo de Jefatura (notificaciones)', type: 'email', desc: 'Correo donde se notificarán los nuevos permisos pendientes de revisión. Vacío = sin notificación.', group: 'Notificaciones' },
+  jefatura_notificacion_cc_email: { label: 'Correo en Copia (CC)', type: 'email', desc: 'Correo adicional en copia (CC). Opcional. Admite múltiples separados por coma.', group: 'Notificaciones' },
   smtp_host: { label: 'Host', type: 'text', desc: 'Ej: smtp.gmail.com', group: 'Correo SMTP' },
   smtp_port: { label: 'Puerto', type: 'number', desc: 'Ej: 587 (TLS) o 465 (SSL)', group: 'Correo SMTP' },
   smtp_user: { label: 'Usuario', type: 'text', desc: 'Dirección de correo para autenticación', group: 'Correo SMTP' },
@@ -16,7 +18,7 @@ const CONFIG_META: Record<string, { label: string; type: string; desc: string; g
   smtp_from: { label: 'Correo Remitente', type: 'email', desc: 'Dirección que aparecerá como remitente', group: 'Correo SMTP' },
 };
 
-const GROUPS = ['Sistema', 'Sesión', 'Correo SMTP'];
+const GROUPS = ['Sistema', 'Sesión', 'Notificaciones', 'Correo SMTP'];
 const SMTP_KEYS = ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from'];
 
 export default function Configuracion() {

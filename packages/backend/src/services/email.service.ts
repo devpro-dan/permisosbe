@@ -110,7 +110,7 @@ function getEmailTemplate(title: string, body: string): string {
     <head><meta charset="utf-8"></head>
     <body style="font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:20px;">
       <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">
-        <div style="background:#2563eb;padding:20px;text-align:center;">
+        <div style="background:#2596be;padding:20px;text-align:center;">
           <h1 style="color:#ffffff;margin:0;font-size:22px;">Sistema de Permisos Administrativos</h1>
         </div>
         <div style="padding:30px;">
@@ -148,7 +148,7 @@ export const emailService = {
     });
   },
 
-  async sendPermisoNotification(email: string, tipo: string, data: any, userName?: string, disponibilidad?: { available: number; max: number }) {
+  async sendPermisoNotification(email: string, tipo: string, data: any, userName?: string, disponibilidad?: { available: number; max: number }, categoria: 'administrativo' | 'matrimonio' = 'administrativo') {
     const transport = await getTransporter();
     if (!transport) {
       console.log('SMTP no configurado, correo no enviado');
@@ -159,7 +159,8 @@ export const emailService = {
     const from = smtpFrom?.valor || 'noreply@permisosbe.com';
 
     const saludo = userName ? `Hola <strong>${userName}</strong>,` : 'Hola,';
-    const dias = calcularDias(data.fecha_inicio, data.fecha_fin);
+    const isMatrimonioNotif = categoria === 'matrimonio';
+    const dias = isMatrimonioNotif ? 5 : calcularDias(data.fecha_inicio, data.fecha_fin);
     const diaLabel = `${dias} ${dias === 1 ? 'día' : 'días'}`;
 
     let resumenHtml = '';
@@ -168,7 +169,7 @@ export const emailService = {
         <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;background:#f8fafc;border-radius:8px;">
           <tr>
             <td style="padding:12px;text-align:center;border-right:1px solid #e5e7eb;">
-              <div style="font-size:24px;font-weight:700;color:#2563eb;">${diaLabel}</div>
+              <div style="font-size:24px;font-weight:700;color:#2596be;">${diaLabel}</div>
               <div style="font-size:12px;color:#6b7280;margin-top:2px;">Solicitados</div>
             </td>
             <td style="padding:12px;text-align:center;border-right:1px solid #e5e7eb;">
@@ -187,13 +188,14 @@ export const emailService = {
     let title = '';
     let body = '';
 
+    const label = isMatrimonioNotif ? 'Permiso por Matrimonio' : 'Permiso Administrativo';
     switch (tipo) {
       case 'solicitado': {
-        subject = 'Permiso Administrativo Solicitado';
+        subject = `${label} Solicitado`;
         title = 'Solicitud Recibida';
         body = `
           <p style="color:#374151;font-size:15px;line-height:1.6;">${saludo}</p>
-          <p style="color:#374151;font-size:15px;line-height:1.6;">Hemos recibido tu solicitud de permiso administrativo. A continuación, el resumen de tus días:</p>
+          <p style="color:#374151;font-size:15px;line-height:1.6;">Hemos recibido tu solicitud de ${label.toLowerCase()}. A continuación, el resumen:</p>
           ${resumenHtml}
           ${detailTable(data)}
           <div style="text-align:center;margin:20px 0 10px;">${estadoBadge(data.estado)}</div>
@@ -202,11 +204,11 @@ export const emailService = {
         break;
       }
       case 'aprobado': {
-        subject = 'Permiso Administrativo Aprobado';
+        subject = `${label} Aprobado`;
         title = '¡Permiso Aprobado!';
         body = `
           <p style="color:#374151;font-size:15px;line-height:1.6;">${saludo}</p>
-          <p style="color:#374151;font-size:15px;line-height:1.6;">Tu permiso administrativo ha sido <strong style="color:#16a34a;">aprobado</strong>.</p>
+          <p style="color:#374151;font-size:15px;line-height:1.6;">Tu ${label.toLowerCase()} ha sido <strong style="color:#16a34a;">aprobado</strong>.</p>
           ${resumenHtml}
           ${detailTable(data)}
           <div style="text-align:center;margin:20px 0 10px;">${estadoBadge(data.estado)}</div>
@@ -214,11 +216,11 @@ export const emailService = {
         break;
       }
       case 'rechazado': {
-        subject = 'Permiso Administrativo Rechazado';
+        subject = `${label} Rechazado`;
         title = 'Permiso Rechazado';
         body = `
           <p style="color:#374151;font-size:15px;line-height:1.6;">${saludo}</p>
-          <p style="color:#374151;font-size:15px;line-height:1.6;">Lamentamos informarte que tu permiso administrativo ha sido <strong style="color:#dc2626;">rechazado</strong>.</p>
+          <p style="color:#374151;font-size:15px;line-height:1.6;">Lamentamos informarte que tu ${label.toLowerCase()} ha sido <strong style="color:#dc2626;">rechazado</strong>.</p>
           ${resumenHtml}
           ${detailTable(data)}
           <div style="text-align:center;margin:20px 0 10px;">${estadoBadge(data.estado)}</div>
@@ -240,6 +242,84 @@ export const emailService = {
     }
   },
 
+  async sendJefaturaNotificacion(permisos: any[], usuarios: any[], tipo: 'administrativo' | 'matrimonio' = 'administrativo') {
+    const notifConfig = await systemConfigRepository.findByClave('jefatura_notificacion_email');
+    const dest = notifConfig?.valor?.trim();
+    if (!dest) {
+      console.log('Jefatura email no configurado, notificación omitida');
+      return;
+    }
+    const ccConfig = await systemConfigRepository.findByClave('jefatura_notificacion_cc_email');
+    const cc = ccConfig?.valor?.trim() || undefined;
+    const transport = await getTransporter();
+    if (!transport) {
+      console.log('SMTP no configurado, correo a jefatura no enviado');
+      return;
+    }
+    const smtpFrom = await systemConfigRepository.findByClave('smtp_from');
+    const from = smtpFrom?.valor || 'noreply@permisosbe.com';
+    const isMatrimonio = tipo === 'matrimonio';
+    const titulo = isMatrimonio ? 'Permiso por Matrimonio' : 'Permiso Administrativo';
+    const subject = `Nuevo ${titulo} pendiente de revisión${permisos.length > 1 ? ` (${permisos.length})` : ''}`;
+    const title = `Nuevo ${titulo} pendiente de revisión`;
+
+    const userTableRows = (user: any) => [
+      ['Nombre', `${user.nombres || ''} ${user.apellido_paterno || ''} ${user.apellido_materno || ''}`.trim()],
+      ['RUT', `${user.rut || ''}-${user.dv || ''}`],
+      ['Cargo', user.cargo || '-'],
+      ['Email', user.email || '-'],
+    ];
+
+    const permisoRows = (p: any) => {
+      const filas: [string, string][] = [
+        ['Fecha Inicio', fmtDate(p.fecha_inicio)],
+        ['Fecha Fin', fmtDate(p.fecha_fin)],
+        ['Días', isMatrimonio ? '5 días' : `${calcularDias(p.fecha_inicio, p.fecha_fin)} días`],
+        ['Jornada', isMatrimonio ? 'Completa' : jornadaLabel(p.tipo_jornada)],
+        ['Motivo', p.motivo || '-'],
+        ['Estado', 'Pendiente de revisión'],
+      ];
+      return filas;
+    };
+
+    const tablesHtml = permisos.map((p, idx) => {
+      const u = usuarios[idx] || usuarios[0] || {};
+      const userRows = userTableRows(u);
+      const permRows = permisoRows(p);
+      return `
+        <div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:16px 0;">
+          <div style="background:#f8fafc;padding:10px 14px;font-weight:700;color:#1e293b;font-size:13px;">Solicitud #${idx + 1} — ${u.nombres || ''} ${u.apellido_paterno || ''}</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <tr><td colspan="2" style="background:#eff6ff;padding:8px 12px;font-weight:700;color:#1e40af;font-size:12px;">DATOS DEL FUNCIONARIO</td></tr>
+            ${userRows.map(([k, v]) => `<tr><td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#64748b;width:130px;font-weight:600;">${k}</td><td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1f2937;">${v}</td></tr>`).join('')}
+            <tr><td colspan="2" style="background:#fef3c7;padding:8px 12px;font-weight:700;color:#92400e;font-size:12px;">DETALLE DEL PERMISO</td></tr>
+            ${permRows.map(([k, v]) => `<tr><td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#64748b;width:130px;font-weight:600;">${k}</td><td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#1f2937;">${v}</td></tr>`).join('')}
+          </table>
+        </div>
+      `;
+    }).join('');
+
+    const body = `
+      <p style="color:#374151;font-size:15px;line-height:1.6;">Se ha registrado una nueva solicitud de <strong>${titulo.toLowerCase()}</strong> que requiere revisión.</p>
+      ${tablesHtml}
+      <p style="color:#6b7280;font-size:13px;margin-top:16px;">Ingresa al sistema en <strong>Gestión de Permisos</strong> para aprobar o rechazar la solicitud.</p>
+      <div style="text-align:center;margin:20px 0;"><span style="display:inline-block;padding:6px 14px;background:#fef3c7;color:#92400e;border-radius:999px;font-size:13px;font-weight:600;">Pendiente de revisión</span></div>
+    `;
+
+    try {
+      await transport.sendMail({
+        from: `"PermisosBE" <${from}>`,
+        to: dest,
+        cc: cc || undefined,
+        subject,
+        html: getEmailTemplate(title, body),
+      });
+    } catch (err) {
+      console.error('Error enviando notificación a jefatura:', err);
+      transporter = null;
+    }
+  },
+
   async sendResetPasswordEmail(email: string, userName: string, resetLink: string) {
     const transport = await getTransporter();
     if (!transport) {
@@ -257,7 +337,7 @@ export const emailService = {
         <p style="color:#374151;font-size:15px;line-height:1.6;">Hola <strong>${userName}</strong>,</p>
         <p style="color:#374151;font-size:15px;line-height:1.6;">Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente botón para crear una nueva contraseña:</p>
         <div style="text-align:center;margin:24px 0;">
-          <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:600;">Restablecer Contraseña</a>
+          <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#2596be;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:600;">Restablecer Contraseña</a>
         </div>
         <p style="color:#6b7280;font-size:13px;line-height:1.5;">Este enlace expirará en 1 hora. Si no solicitaste este cambio, ignora este mensaje.</p>
       `),

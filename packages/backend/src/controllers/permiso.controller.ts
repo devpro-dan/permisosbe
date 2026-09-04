@@ -191,6 +191,9 @@ export const permisoController = {
           const restantes = await permisoService.getAvailablePermisos(userId);
           await emailService.sendPermisoNotification(user.email, 'solicitado', permiso, user.nombres, { available: restantes.available, max: restantes.max });
         }
+        if (user) {
+          try { await emailService.sendJefaturaNotificacion([permiso], [user], 'administrativo'); } catch {}
+        }
       } catch (emailError) {
         console.error('Error enviando notificación al solicitar permiso:', emailError);
       }
@@ -374,6 +377,7 @@ export const permisoController = {
           const restantes = await permisoService.getAvailablePermisos(user_id);
           await emailService.sendPermisoNotification(targetUser.email, 'solicitado', permiso, targetUser.nombres, { available: restantes.available, max: restantes.max });
         }
+        try { await emailService.sendJefaturaNotificacion([permiso], [targetUser], 'administrativo'); } catch {}
       } catch (emailError) {
         console.error('Error enviando notificación al registrar permiso para usuario:', emailError);
       }

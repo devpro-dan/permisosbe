@@ -15,6 +15,8 @@ const defaultConfigs = [
   { clave: 'smtp_user', valor: '', descripcion: 'Usuario de autenticación SMTP' },
   { clave: 'smtp_pass', valor: '', descripcion: 'Contraseña de aplicación SMTP' },
   { clave: 'smtp_from', valor: '', descripcion: 'Dirección de correo desde la que se enviarán los emails' },
+  { clave: 'jefatura_notificacion_email', valor: '', descripcion: 'Correo de jefatura para notificaciones de permisos pendientes' },
+  { clave: 'jefatura_notificacion_cc_email', valor: '', descripcion: 'Correo en copia (CC) para notificaciones de permisos pendientes' },
 ];
 
 async function insertConfigs(client: any) {
