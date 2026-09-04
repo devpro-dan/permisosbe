@@ -155,6 +155,25 @@ export const permisoApi = {
   },
 };
 
+export const matrimonioApi = {
+  misPermisos: () => api.get('/permisos-matrimonio/mis-permisos'),
+  solicitar: (data: any) => api.post('/permisos-matrimonio/solicitar', data),
+  registrarParaUsuario: (data: any) => api.post('/permisos-matrimonio/registrar-para-usuario', data),
+  listarTodos: () => api.get('/permisos-matrimonio'),
+  getByUserId: (userId: number) => api.get(`/permisos-matrimonio/usuario/${userId}`),
+  update: (id: number, data: any) => api.put(`/permisos-matrimonio/${id}`, data),
+  delete: (id: number) => api.delete(`/permisos-matrimonio/${id}`),
+  aprobar: (id: number) => api.post(`/permisos-matrimonio/${id}/aprobar`),
+  rechazar: (id: number, motivo_rechazo: string) => api.post(`/permisos-matrimonio/${id}/rechazar`, { motivo_rechazo }),
+  info: (fecha_inicio: string) => api.get('/permisos-matrimonio/info', { params: { fecha_inicio } }),
+  subirComprobante: (id: number, file: File) => {
+    const formData = new FormData();
+    formData.append('comprobante', file);
+    return api.post(`/permisos-matrimonio/${id}/comprobante`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  descargarComprobante: (id: number) => api.get(`/permisos-matrimonio/${id}/comprobante`, { responseType: 'blob' }),
+};
+
 export const feriadoApi = {
   list: (year?: number) => api.get('/feriados', { params: year ? { year } : {} }),
   create: (data: any) => api.post('/feriados', data),

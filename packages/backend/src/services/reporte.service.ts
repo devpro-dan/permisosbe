@@ -146,24 +146,28 @@ export const reporteService = {
       const logoBottom = drawLogo(doc);
       if (logoBottom > 0) doc.y = logoBottom + 8;
 
-      doc.fontSize(19).text('Reporte General de Permisos Administrativos', { align: 'center' });
+      const tipoLabel = (filters as any).tipoPermiso ? ` | Tipo: ${(filters as any).tipoPermiso}` : '';
+      doc.fontSize(19).text('Reporte General de Permisos', { align: 'center' });
       doc.moveDown(0.5);
-      doc.fontSize(10).text(`Filtros: ${filters.employee || 'Todos los funcionarios'} | Cargo: ${filters.cargo || 'Todos'} | Año: ${filters.year || 'Todos'}`);
+      doc.fontSize(10).text(`Filtros: ${filters.employee || 'Todos los funcionarios'} | Cargo: ${filters.cargo || 'Todos'} | Año: ${filters.year || 'Todos'}${tipoLabel}`);
       doc.text(`Período: ${filters.startDate || 'Inicio'} a ${filters.endDate || 'Actualidad'}`);
       doc.text(`Registros: ${permisos.length}`);
       doc.moveDown(0.6);
 
-      const headers = ['N°', 'Funcionario', 'RUT', 'Desde', 'Hasta', 'Días', 'Estado'];
-      const widths = [30, 140, 75, 70, 70, 50, 70];
+      const headers = ['N°', 'Funcionario', 'RUT', 'Tipo', 'Desde', 'Hasta', 'Días', 'Estado'];
+      const widths = [26, 110, 70, 70, 62, 62, 40, 65];
       const rows = permisos.map((p, i) => {
         const estadoLabel = p.estado === 'en_revision' ? 'En Revisión' : p.estado === 'aprobado' ? 'Aprobado' : 'Rechazado';
+        const tipo = p._tipo === 'matrimonio' ? 'Matrimonio' : 'Administrativo';
+        const dias = p._tipo === 'matrimonio' ? 5 : calcularDias(p.fecha_inicio, p.fecha_fin);
         return [
           i + 1,
           `${p.nombres || ''} ${p.apellido_paterno || ''}`.trim(),
           `${p.rut}-${p.dv}`,
+          tipo,
           fmtDate(p.fecha_inicio),
           p.fecha_fin ? fmtDate(p.fecha_fin) : '-',
-          calcularDias(p.fecha_inicio, p.fecha_fin),
+          dias,
           estadoLabel,
         ];
       });
@@ -267,35 +271,37 @@ export const reporteService = {
   async generarReporteGeneralExcel(permisos: any[], filters: { employee?: string; startDate?: string; endDate?: string; year?: number; cargo?: string }): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Reporte General');
-    sheet.mergeCells('C1:H2');
+    sheet.mergeCells('C1:K2');
     const titleCell = sheet.getCell('C1');
-    titleCell.value = 'Reporte General de Permisos Administrativos';
+    titleCell.value = 'Reporte General de Permisos';
     titleCell.font = { bold: true, size: 14 };
-    sheet.mergeCells('C3:H3');
-    sheet.getCell('C3').value = `Funcionario: ${filters.employee || 'Todos'} | Cargo: ${filters.cargo || 'Todos'} | Año: ${filters.year || 'Todos'} | Desde: ${filters.startDate || 'Todas'} | Hasta: ${filters.endDate || 'Todas'}`;
+    sheet.mergeCells('C3:K3');
+    sheet.getCell('C3').value = `Funcionario: ${filters.employee || 'Todos'} | Cargo: ${filters.cargo || 'Todos'} | Año: ${filters.year || 'Todos'} | Desde: ${filters.startDate || 'Todas'} | Hasta: ${filters.endDate || 'Todas'} | Tipo: ${(filters as any).tipoPermiso || 'todos'}`;
     sheet.addRow([]);
-    sheet.addRow(['#', 'Funcionario', 'RUT', 'Fecha Solicitud', 'Fecha Inicio', 'Fecha Fin', 'Días', 'Jornada', 'Estado', 'Motivo']);
+    sheet.addRow(['#', 'Funcionario', 'RUT', 'Tipo', 'Fecha Solicitud', 'Fecha Inicio', 'Fecha Fin', 'Días', 'Jornada', 'Estado', 'Motivo']);
     sheet.columns = [
       { key: 'id', width: 6 },
-      { key: 'funcionario', width: 32 },
-      { key: 'rut', width: 15 },
-      { key: 'fecha_solicitud', width: 18 },
-      { key: 'fecha_inicio', width: 15 },
-      { key: 'fecha_fin', width: 15 },
-      { key: 'dias', width: 10 },
-      { key: 'tipo_jornada', width: 15 },
-      { key: 'estado', width: 15 },
-      { key: 'motivo', width: 40 },
+      { key: 'funcionario', width: 28 },
+      { key: 'rut', width: 14 },
+      { key: 'tipo', width: 15 },
+      { key: 'fecha_solicitud', width: 16 },
+      { key: 'fecha_inicio', width: 14 },
+      { key: 'fecha_fin', width: 14 },
+      { key: 'dias', width: 8 },
+      { key: 'tipo_jornada', width: 13 },
+      { key: 'estado', width: 13 },
+      { key: 'motivo', width: 36 },
     ];
     permisos.forEach((p) => sheet.addRow({
       id: p.id,
       funcionario: `${p.nombres || ''} ${p.apellido_paterno || ''}`.trim(),
       rut: `${p.rut}-${p.dv}`,
+      tipo: p._tipo === 'matrimonio' ? 'Matrimonio' : 'Administrativo',
       fecha_solicitud: p.fecha_solicitud,
       fecha_inicio: p.fecha_inicio,
       fecha_fin: p.fecha_fin || '',
-      dias: calcularDias(p.fecha_inicio, p.fecha_fin),
-      tipo_jornada: p.tipo_jornada,
+      dias: p._tipo === 'matrimonio' ? 5 : calcularDias(p.fecha_inicio, p.fecha_fin),
+      tipo_jornada: p._tipo === 'matrimonio' ? '-' : p.tipo_jornada,
       estado: p.estado,
       motivo: p.motivo,
     }));

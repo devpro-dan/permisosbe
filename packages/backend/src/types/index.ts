@@ -51,6 +51,21 @@ export interface PermisoAdministrativo {
   updated_at: Date;
 }
 
+export interface PermisoMatrimonio {
+  id: number;
+  user_id: number;
+  fecha_solicitud: Date;
+  fecha_inicio: string;
+  fecha_fin: string;
+  estado: 'en_revision' | 'aprobado' | 'rechazado';
+  motivo: string;
+  motivo_rechazo?: string;
+  comprobante_url?: string;
+  comprobante_disponible?: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface Session {
   id: number;
   user_id: number;

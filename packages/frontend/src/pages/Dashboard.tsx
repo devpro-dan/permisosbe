@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { permisoApi } from '../services/api';
-import { Permiso, Disponibilidad } from '../types';
+import { permisoApi, matrimonioApi } from '../services/api';
+import { Permiso, Disponibilidad, PermisoMatrimonio } from '../types';
 import { CalendarCheck, CalendarClock, CalendarDays, ClipboardList, ClipboardCheck, Clock, CheckCircle, XCircle, Trophy, AlertTriangle, Crown, Users, TrendingUp, Medal, Flame, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../components/Modal';
@@ -18,9 +18,9 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [disponibilidad, setDisponibilidad] = useState<Disponibilidad | null>(null);
-  const [pendientes, setPendientes] = useState<Permiso[]>([]);
+  const [pendientes, setPendientes] = useState<Array<(Permiso & { _tipo: 'administrativo' }) | (PermisoMatrimonio & { _tipo: 'matrimonio' })>>([]);
   const [loadingPendientes, setLoadingPendientes] = useState(true);
-  const [rechazoModal, setRechazoModal] = useState<{ id: number; open: boolean }>({ id: 0, open: false });
+  const [rechazoModal, setRechazoModal] = useState<{ id: number; tipo: 'administrativo' | 'matrimonio'; open: boolean }>({ id: 0, tipo: 'administrativo', open: false });
   const [motivoRechazo, setMotivoRechazo] = useState('');
 
   const esAdmin = user?.rolId === 1 || user?.rolId === 2;
@@ -36,8 +36,10 @@ export default function Dashboard() {
         .catch(() => {});
     }
     if (esAdmin) {
-      permisoApi.listarTodos()
-        .then((res) => setPendientes(res.data.filter((p: Permiso) => p.estado === 'en_revision')))
+      Promise.all([
+        permisoApi.listarTodos().then((res) => res.data.filter((p: Permiso) => p.estado === 'en_revision').map((p: Permiso) => ({ ...p, _tipo: 'administrativo' as const }))),
+        matrimonioApi.listarTodos().then((res) => (res.data as PermisoMatrimonio[]).filter((p) => p.estado === 'en_revision').map((p) => ({ ...p, _tipo: 'matrimonio' as const }))).catch(() => []),
+      ]).then(([a, m]) => setPendientes([...a, ...m].sort((x, y) => new Date(y.fecha_solicitud).getTime() - new Date(x.fecha_solicitud).getTime())))
         .catch(() => {})
         .finally(() => setLoadingPendientes(false));
       permisoApi.dashboardIndicadores()
@@ -47,10 +49,11 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  const handleAprobar = async (id: number) => {
+  const handleAprobar = async (row: typeof pendientes[number]) => {
     try {
-      await permisoApi.aprobar(id);
-      setPendientes((prev) => prev.filter((p) => p.id !== id));
+      if (row._tipo === 'matrimonio') await matrimonioApi.aprobar(row.id);
+      else await permisoApi.aprobar(row.id);
+      setPendientes((prev) => prev.filter((p) => !(p.id === row.id && p._tipo === row._tipo)));
       toast({ message: 'Permiso aprobado correctamente', type: 'success' });
     } catch (err: any) {
       toast({ message: err.response?.data?.message || 'Error al aprobar', type: 'error' });
@@ -59,9 +62,10 @@ export default function Dashboard() {
 
   const handleRechazar = async () => {
     try {
-      await permisoApi.rechazar(rechazoModal.id, motivoRechazo);
-      setPendientes((prev) => prev.filter((p) => p.id !== rechazoModal.id));
-      setRechazoModal({ id: 0, open: false });
+      if (rechazoModal.tipo === 'matrimonio') await matrimonioApi.rechazar(rechazoModal.id, motivoRechazo);
+      else await permisoApi.rechazar(rechazoModal.id, motivoRechazo);
+      setPendientes((prev) => prev.filter((p) => !(p.id === rechazoModal.id && p._tipo === rechazoModal.tipo)));
+      setRechazoModal({ id: 0, tipo: 'administrativo', open: false });
       setMotivoRechazo('');
       toast({ message: 'Permiso rechazado correctamente', type: 'success' });
     } catch (err: any) {
@@ -303,23 +307,23 @@ export default function Dashboard() {
                       {p.nombres} {p.apellido_paterno}
                     </p>
                     <p className="text-sm text-gray-500">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mr-1 ${p._tipo === 'matrimonio' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'}`}>{p._tipo === 'matrimonio' ? 'Matrimonio' : 'Administrativo'}</span>
                       {formatDate(p.fecha_inicio)}{p.fecha_fin ? ` - ${formatDate(p.fecha_fin)}` : ''}
                       <span className="mx-1">·</span>
-                      {calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días
-                      <span className="mx-1">·</span>
-                      {p.tipo_jornada === 'completa' ? 'Completa' : 'Media'}
+                      {p._tipo === 'matrimonio' ? '5 días' : `${calcularDias(p.fecha_inicio, p.fecha_fin, (p as any).tipo_jornada)} días`}
+                      {p._tipo === 'administrativo' && <><span className="mx-1">·</span>{(p as any).tipo_jornada === 'completa' ? 'Completa' : 'Media'}</>}
                     </p>
                     <p className="text-sm text-gray-600 truncate">{p.motivo}</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button
-                      onClick={() => handleAprobar(p.id)}
+                      onClick={() => handleAprobar(p)}
                       className="inline-flex items-center gap-1 px-3 py-1.5 bg-success-600 hover:bg-success-700 text-white text-sm rounded-lg transition-colors"
                     >
                       <CheckCircle className="w-3.5 h-3.5" /> Aprobar
                     </button>
                     <button
-                      onClick={() => setRechazoModal({ id: p.id, open: true })}
+                      onClick={() => setRechazoModal({ id: p.id, tipo: p._tipo, open: true })}
                       className="inline-flex items-center gap-1 px-3 py-1.5 bg-danger-600 hover:bg-danger-700 text-white text-sm rounded-lg transition-colors"
                     >
                       <XCircle className="w-3.5 h-3.5" /> Rechazar
@@ -340,7 +344,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <Modal isOpen={rechazoModal.open} onClose={() => setRechazoModal({ id: 0, open: false })} title="Rechazar Permiso">
+      <Modal isOpen={rechazoModal.open} onClose={() => setRechazoModal({ id: 0, tipo: 'administrativo', open: false })} title="Rechazar Permiso">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Motivo de Rechazo</label>

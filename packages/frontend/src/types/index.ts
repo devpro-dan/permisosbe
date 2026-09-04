@@ -53,6 +53,25 @@ export interface Permiso {
   comprobante_disponible?: boolean;
 }
 
+export interface PermisoMatrimonio {
+  id: number;
+  user_id: number;
+  nombres?: string;
+  apellido_paterno?: string;
+  apellido_materno?: string;
+  rut?: string;
+  dv?: string;
+  cargo?: string;
+  fecha_solicitud: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  estado: 'en_revision' | 'aprobado' | 'rechazado';
+  motivo: string;
+  motivo_rechazo?: string;
+  comprobante_url?: string;
+  comprobante_disponible?: boolean;
+}
+
 export interface Disponibilidad {
   max: number;
   used: number;

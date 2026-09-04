@@ -4,6 +4,7 @@ import fs from 'fs';
 import multer from 'multer';
 import ExcelJS from 'exceljs';
 import { permisoService } from '../services/permiso.service';
+import { matrimonioService } from '../services/matrimonio.service';
 import { emailService } from '../services/email.service';
 import { auditLogService } from '../services/auditLog.service';
 
@@ -82,14 +83,27 @@ function calcDiasSolicitud(inicio: string, fin: string | undefined, tipo: string
   return Math.max(1, count);
 }
 
+function parseCantidadDias(raw: any): number | null {
+  if (raw === null || raw === undefined || String(raw).trim() === '') return null;
+  const s = String(raw).trim().toLowerCase().replace(',', '.');
+  if (s === 'medio' || s === 'media' || s === '0.5' || s === '.5') return 0.5;
+  const n = Number(s);
+  if (n === 0.5) return 0.5;
+  if (Number.isInteger(n) && n >= 1 && n <= 6) return n;
+  return null;
+}
+
 function getReportFilters(body: any) {
   const b = body || {};
+  const tipoRaw = String(b.tipoPermiso || b.tipo || '').trim().toLowerCase();
+  const tipoPermiso = ['administrativo', 'matrimonio', 'todos'].includes(tipoRaw) ? tipoRaw : 'todos';
   return {
     employee: (b.employee as string) || undefined,
     startDate: (b.startDate as string) || undefined,
     endDate: (b.endDate as string) || undefined,
     year: b.year ? parseInt(String(b.year), 10) : undefined,
     cargo: (b.cargo as string) || undefined,
+    tipoPermiso: tipoPermiso as 'todos' | 'administrativo' | 'matrimonio',
   };
 }
 
@@ -630,7 +644,11 @@ export const permisoController = {
   async reporteGeneralPDF(req: Request, res: Response) {
     try {
       const filters = getReportFilters(req.body);
-      const permisos = await permisoService.findForReport(filters);
+      const tipo = (filters as any).tipoPermiso;
+      let permisos: any[];
+      if (tipo === 'matrimonio') permisos = await matrimonioService.findForReport(filters);
+      else if (tipo === 'administrativo') { const r = await permisoService.findForReport(filters); permisos = r.map((x: any) => ({ ...x, _tipo: 'administrativo' })); }
+      else { const [a, m] = await Promise.all([permisoService.findForReport(filters).then((r: any[]) => r.map((x) => ({ ...x, _tipo: 'administrativo' }))), matrimonioService.findForReport(filters)]); permisos = [...a, ...m].sort((x, y) => new Date(y.fecha_inicio).getTime() - new Date(x.fecha_inicio).getTime()); }
       const { reporteService } = require('../services/reporte.service');
       const pdfBuffer = await reporteService.generarReporteGeneralPDF(permisos, filters);
 
@@ -645,7 +663,11 @@ export const permisoController = {
   async reporteGeneralExcel(req: Request, res: Response) {
     try {
       const filters = getReportFilters(req.body);
-      const permisos = await permisoService.findForReport(filters);
+      const tipo = (filters as any).tipoPermiso;
+      let permisos: any[];
+      if (tipo === 'matrimonio') permisos = await matrimonioService.findForReport(filters);
+      else if (tipo === 'administrativo') { const r = await permisoService.findForReport(filters); permisos = r.map((x: any) => ({ ...x, _tipo: 'administrativo' })); }
+      else { const [a, m] = await Promise.all([permisoService.findForReport(filters).then((r: any[]) => r.map((x) => ({ ...x, _tipo: 'administrativo' }))), matrimonioService.findForReport(filters)]); permisos = [...a, ...m].sort((x, y) => new Date(y.fecha_inicio).getTime() - new Date(x.fecha_inicio).getTime()); }
       const { reporteService } = require('../services/reporte.service');
       const excelBuffer = await reporteService.generarReporteGeneralExcel(permisos, filters);
 
@@ -700,7 +722,11 @@ export const permisoController = {
   async reporteConsulta(req: Request, res: Response) {
     try {
       const filters = getReportFilters(req.body);
-      const permisos = await permisoService.findForReport(filters);
+      const tipo = (filters as any).tipoPermiso;
+      let permisos: any[];
+      if (tipo === 'matrimonio') permisos = await matrimonioService.findForReport(filters);
+      else if (tipo === 'administrativo') { const r = await permisoService.findForReport(filters); permisos = r.map((x: any) => ({ ...x, _tipo: 'administrativo' })); }
+      else { const [a, m] = await Promise.all([permisoService.findForReport(filters).then((r: any[]) => r.map((x) => ({ ...x, _tipo: 'administrativo' }))), matrimonioService.findForReport(filters)]); permisos = [...a, ...m].sort((x, y) => new Date(y.fecha_inicio).getTime() - new Date(x.fecha_inicio).getTime()); }
       res.json(permisos);
     } catch (error) {
       res.status(500).json({ message: 'Error al obtener datos del reporte' });
@@ -748,8 +774,8 @@ export const permisoController = {
         { campo: 'rut', req: 'Sí', formato: 'Sólo números y K, sin puntos ni guion', ejemplo: '12345678', desc: 'Identifica al funcionario. Debe existir en la plataforma. Clave foránea permisos_administrativos.user_id → users.id' },
         { campo: 'dv', req: 'Sí', formato: '0-9 o K (1 carácter)', ejemplo: '5', desc: 'Dígito verificador del RUT.' },
         { campo: 'fecha_inicio', req: 'Sí', formato: 'YYYY-MM-DD', ejemplo: '2026-03-02', desc: 'Fecha inicio del permiso. No puede ser fin de semana ni feriado.' },
-        { campo: 'cantidad_dias', req: 'Sí', formato: 'Entero 1 a 6', ejemplo: '2', desc: 'Cantidad de días hábiles. La fecha_fin se calcula automáticamente (días hábiles consecutivos, saltando fines de semana y feriados).' },
-        { campo: 'tipo_jornada', req: 'Sí', formato: 'completa | media', ejemplo: 'completa', desc: 'Si cantidad_dias > 1 debe ser completa. Media solo para 1 día.' },
+        { campo: 'cantidad_dias', req: 'Sí', formato: '1 a 6, 0.5 o medio', ejemplo: '2', desc: 'Cantidad de días hábiles. Admite 0.5 o medio (=0.5). La fecha_fin se calcula automáticamente (días hábiles consecutivos, saltando fines de semana y feriados).' },
+        { campo: 'tipo_jornada', req: 'Sí', formato: 'completa | media', ejemplo: 'completa', desc: 'Si cantidad_dias > 1 debe ser completa. Si cantidad_dias es 0.5/medio debe ser media. Media solo para 1 día o 0.5.' },
         { campo: 'motivo', req: 'Sí', formato: 'Texto libre (máx 500)', ejemplo: 'Trámite personal', desc: 'Motivo del permiso administrativo.' },
       ]);
       instrucciones.getRow(1).font = { bold: true };
@@ -850,15 +876,16 @@ export const permisoController = {
           };
           const rutRaw = get('rut'); const dvRaw = get('dv'); const fechaInicioRaw = get('fecha_inicio'); const cantidadRaw = get('cantidad_dias');
           const tipoJornadaRaw = String(get('tipo_jornada') || '').trim().toLowerCase(); const motivoRaw = String(get('motivo') || '').trim();
-          const fecha_inicio = toISO(fechaInicioRaw); const cantidadDias = parseInt(String(cantidadRaw).trim(), 10);
+          const fecha_inicio = toISO(fechaInicioRaw); const cantidadDias = parseCantidadDias(cantidadRaw);
           let fecha_fin: string | undefined = undefined;
           let error: string | null = null;
           let rutDisplay = `${String(rutRaw).trim()}-${String(dvRaw).trim()}`;
           if (!motivoRaw) error = 'Motivo requerido';
           else if (!['completa', 'media'].includes(tipoJornadaRaw)) error = 'tipo_jornada debe ser completa o media';
           else if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_inicio)) error = `fecha_inicio inválida (${fechaInicioRaw})`;
-          else if (!Number.isInteger(cantidadDias) || cantidadDias < 1 || cantidadDias > 6) error = `cantidad_dias inválida (${cantidadRaw})`;
-          else if (tipoJornadaRaw === 'media' && cantidadDias !== 1) error = 'Media jornada solo permite cantidad_dias = 1';
+          else if (cantidadDias === null) error = `cantidad_dias inválida (${cantidadRaw}) debe ser 1 a 6, 0.5 o medio`;
+          else if (cantidadDias === 0.5 && tipoJornadaRaw !== 'media') error = 'cantidad_dias 0.5/medio solo permite tipo_jornada media';
+          else if (tipoJornadaRaw === 'media' && cantidadDias !== 1 && cantidadDias !== 0.5) error = 'Media jornada solo permite cantidad_dias = 1 o 0.5/medio';
           else if (isWeekend(fecha_inicio)) error = 'fecha_inicio no puede ser fin de semana';
           else {
             const feriadosInicio = await feriadosEnRango(fecha_inicio, fecha_inicio);
@@ -878,7 +905,7 @@ export const permisoController = {
               }
               return `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
             };
-            fecha_fin = cantidadDias > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias) : undefined;
+            fecha_fin = cantidadDias! > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias!) : undefined;
             if (fecha_fin) {
               const feriadosFin = await feriadosEnRango(fecha_fin, fecha_fin);
               if (feriadosFin.length > 0) error = mensajeFeriado(feriadosFin[0]);
@@ -894,7 +921,7 @@ export const permisoController = {
               else {
                 const userId = r.rows[0].id;
                 const disponibilidad = await permisoService.getAvailablePermisos(userId);
-                const diasNecesarios = tipoJornadaRaw === 'media' ? 0.5 : cantidadDias;
+                const diasNecesarios = tipoJornadaRaw === 'media' || cantidadDias === 0.5 ? 0.5 : cantidadDias!;
                 if (diasNecesarios > disponibilidad.available) {
                   const reqStr = diasNecesarios === 0.5 ? 'media jornada' : String(diasNecesarios);
                   error = `Solicita ${reqStr} día${diasNecesarios === 1 || diasNecesarios === 0.5 ? '' : 's'}, solo quedan ${disponibilidad.available} disponibles de ${disponibilidad.max}`;
@@ -958,12 +985,13 @@ export const permisoController = {
           };
           const rutRaw = get('rut'); const dvRaw = get('dv'); const fechaInicioRaw = get('fecha_inicio'); const cantidadRaw = get('cantidad_dias');
           const tipoJornadaRaw = String(get('tipo_jornada') || '').trim().toLowerCase(); const motivoRaw = String(get('motivo') || '').trim();
-          const fecha_inicio = toISO(fechaInicioRaw); const cantidadDias = parseInt(String(cantidadRaw).trim(), 10);
+          const fecha_inicio = toISO(fechaInicioRaw); const cantidadDias = parseCantidadDias(cantidadRaw);
           if (!motivoRaw) { errors.push({ fila: rowNumber, message: 'Motivo requerido' }); continue; }
           if (!['completa', 'media'].includes(tipoJornadaRaw)) { errors.push({ fila: rowNumber, message: 'tipo_jornada debe ser completa o media' }); continue; }
           if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_inicio)) { errors.push({ fila: rowNumber, message: `fecha_inicio inválida (${fechaInicioRaw}) use YYYY-MM-DD` }); continue; }
-          if (!Number.isInteger(cantidadDias) || cantidadDias < 1 || cantidadDias > 6) { errors.push({ fila: rowNumber, message: `cantidad_dias inválida (${cantidadRaw}) debe ser entero 1 a 6` }); continue; }
-          if (tipoJornadaRaw === 'media' && cantidadDias !== 1) { errors.push({ fila: rowNumber, message: 'Media jornada solo permite cantidad_dias = 1' }); continue; }
+          if (cantidadDias === null) { errors.push({ fila: rowNumber, message: `cantidad_dias inválida (${cantidadRaw}) debe ser 1 a 6, 0.5 o medio` }); continue; }
+          if (cantidadDias === 0.5 && tipoJornadaRaw !== 'media') { errors.push({ fila: rowNumber, message: 'cantidad_dias 0.5/medio solo permite tipo_jornada media' }); continue; }
+          if (tipoJornadaRaw === 'media' && cantidadDias !== 1 && cantidadDias !== 0.5) { errors.push({ fila: rowNumber, message: 'Media jornada solo permite cantidad_dias = 1 o 0.5/medio' }); continue; }
           if (isWeekend(fecha_inicio)) { errors.push({ fila: rowNumber, message: 'fecha_inicio no puede ser fin de semana' }); continue; }
           const feriadosInicio = await feriadosEnRango(fecha_inicio, fecha_inicio);
           if (feriadosInicio.length > 0) { errors.push({ fila: rowNumber, message: mensajeFeriado(feriadosInicio[0]) }); continue; }
@@ -980,7 +1008,7 @@ export const permisoController = {
             }
             return `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
           };
-          const fecha_fin = cantidadDias > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias) : undefined;
+          const fecha_fin = cantidadDias! > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias!) : undefined;
           if (fecha_fin) {
             const feriadosFin = await feriadosEnRango(fecha_fin, fecha_fin);
             if (feriadosFin.length > 0) { errors.push({ fila: rowNumber, message: mensajeFeriado(feriadosFin[0]) }); continue; }
@@ -995,7 +1023,7 @@ export const permisoController = {
             else { errors.push({ fila: rowNumber, message: `Usuario no encontrado por RUT ${rutNorm}-${dvNorm}` }); continue; }
           }
           const disponibilidad = await permisoService.getAvailablePermisos(userId!);
-          const diasNecesarios2 = tipoJornadaRaw === 'media' ? 0.5 : cantidadDias;
+          const diasNecesarios2 = tipoJornadaRaw === 'media' || cantidadDias === 0.5 ? 0.5 : cantidadDias!;
           if (diasNecesarios2 > disponibilidad.available) {
             const reqStr = diasNecesarios2 === 0.5 ? 'media jornada' : String(diasNecesarios2);
             errors.push({ fila: rowNumber, message: `Solicita ${reqStr} día${diasNecesarios2 === 1 || diasNecesarios2 === 0.5 ? '' : 's'}, solo quedan ${disponibilidad.available} disponibles de ${disponibilidad.max}` }); continue;

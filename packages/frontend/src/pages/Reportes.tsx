@@ -45,7 +45,8 @@ export default function Reportes() {
   const [year, setYear] = useState(String(currentYear));
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [data, setData] = useState<Permiso[]>([]);
+  const [tipoPermiso, setTipoPermiso] = useState<'todos' | 'administrativo' | 'matrimonio'>('todos');
+  const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
@@ -83,7 +84,7 @@ export default function Reportes() {
   const cargos = Array.from(new Set(usuarios.map((u) => u.cargo).filter(Boolean))).sort();
 
   const params = () => Object.fromEntries(
-    Object.entries({ employee, cargo, startDate, endDate, year }).filter(([, v]) => v !== '')
+    Object.entries({ employee, cargo, startDate, endDate, year, tipoPermiso: tipoPermiso !== 'todos' ? tipoPermiso : undefined }).filter(([, v]) => v !== '' && v !== undefined)
   ) as Record<string, string>;
 
   const handleBuscar = async () => {
@@ -203,26 +204,29 @@ export default function Reportes() {
     setYear(String(currentYear));
     setStartDate('');
     setEndDate('');
+    setTipoPermiso('todos');
     setData([]);
     setSearched(false);
     setResumen([]);
   };
 
+  const tipoBadge = (t: string) => t === 'matrimonio' ? <span className="px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800">Matrimonio</span> : <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Administrativo</span>;
   const columns = [
-    { key: 'nombres', label: 'Funcionario', render: (_: any, row: Permiso) => `${row.nombres} ${row.apellido_paterno}` },
-    { key: 'rut', label: 'RUT', render: (_: any, row: Permiso) => `${row.rut}-${row.dv}` },
+    { key: 'nombres', label: 'Funcionario', render: (_: any, row: any) => `${row.nombres} ${row.apellido_paterno}` },
+    { key: 'rut', label: 'RUT', render: (_: any, row: any) => `${row.rut}-${row.dv}` },
+    { key: '_tipo', label: 'Tipo', render: (_: any, row: any) => tipoBadge(row._tipo || 'administrativo') },
     { key: 'fecha_inicio', label: 'Fecha Inicio', render: (v: string) => formatDate(v) },
     { key: 'fecha_fin', label: 'Fecha Fin', render: (v: string | null) => v ? formatDate(v) : '-' },
     {
       key: 'dias',
       label: 'Días',
-      render: (_: any, row: Permiso) => {
-        const dias = calcularDias(row.fecha_inicio, row.fecha_fin, row.tipo_jornada);
-        return <span className="font-semibold text-primary-700">{dias} {dias === 1 ? 'día' : 'días'}</span>;
+      render: (_: any, row: any) => {
+        const dias = row._tipo === 'matrimonio' ? 5 : calcularDias(row.fecha_inicio, row.fecha_fin, row.tipo_jornada);
+        return <span className={`font-semibold ${row._tipo === 'matrimonio' ? 'text-pink-700' : 'text-primary-700'}`}>{dias} {dias === 1 ? 'día' : 'días'}</span>;
       }
     },
-    { key: 'tipo_jornada', label: 'Jornada', render: (v: string) => v === 'completa' ? 'Completa' : 'Media' },
-    { key: 'estado', label: 'Estado', render: (_: any, row: Permiso) => estadoBadge(row.estado) },
+    { key: 'tipo_jornada', label: 'Jornada', render: (v: string, row: any) => row._tipo === 'matrimonio' ? '-' : v === 'completa' ? 'Completa' : 'Media' },
+    { key: 'estado', label: 'Estado', render: (_: any, row: any) => estadoBadge(row.estado) },
     { key: 'motivo', label: 'Motivo' },
   ];
 
@@ -247,7 +251,7 @@ export default function Reportes() {
     },
   ];
 
-  const hasFilters = employee || cargo || startDate || endDate || year;
+  const hasFilters = employee || cargo || startDate || endDate || year || tipoPermiso !== 'todos';
 
   return (
     <div>
@@ -255,6 +259,11 @@ export default function Reportes() {
       <p className="text-gray-500 mb-6">Consulta y exporta permisos de todos los funcionarios aplicando filtros.</p>
 
       <div className="bg-white rounded-lg shadow p-5 mb-6">
+        <div className="flex bg-gray-100 rounded-lg p-1 mb-4 w-fit">
+          {(['todos', 'administrativo', 'matrimonio'] as const).map((t) => (
+            <button key={t} onClick={() => setTipoPermiso(t)} className={`px-4 py-1.5 text-sm font-medium rounded-md capitalize ${tipoPermiso === t ? 'bg-white shadow text-gray-800' : 'text-gray-600'}`}>{t === 'todos' ? 'Todos' : t === 'matrimonio' ? 'Matrimonio (5 días)' : 'Administrativo'}</button>
+          ))}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -387,17 +396,17 @@ export default function Reportes() {
       ) : searched ? (
         <>
           <DataTable columns={columns} data={data} />
-          {data.map((p) => (
-            <MobileCard key={p.id}>
-              <p className="font-medium">{p.nombres} {p.apellido_paterno}</p>
+          {data.map((p: any) => (
+            <MobileCard key={`${p._tipo || 'administrativo'}-${p.id}`}>
+              <p className="font-medium">{p.nombres} {p.apellido_paterno} {tipoBadge(p._tipo || 'administrativo')}</p>
               <p className="text-sm text-gray-500">{p.rut}-{p.dv}</p>
               <p className="text-sm">{formatDate(p.fecha_inicio)}{p.fecha_fin ? ` - ${formatDate(p.fecha_fin)}` : ''}</p>
-              <p className="text-sm font-semibold text-primary-700">
-                {calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días
+              <p className={`text-sm font-semibold ${p._tipo === 'matrimonio' ? 'text-pink-700' : 'text-primary-700'}`}>
+                {p._tipo === 'matrimonio' ? '5 días' : `${calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días`}
               </p>
               <div className="flex items-center gap-2">
                 {estadoBadge(p.estado)}
-                <span className="text-xs text-gray-500">{p.tipo_jornada === 'completa' ? 'Completa' : 'Media'}</span>
+                <span className="text-xs text-gray-500">{p._tipo === 'matrimonio' ? '-' : p.tipo_jornada === 'completa' ? 'Completa' : 'Media'}</span>
               </div>
               <p className="text-sm text-gray-600 mt-1">{p.motivo}</p>
             </MobileCard>
