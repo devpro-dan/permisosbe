@@ -41,8 +41,8 @@ async function seed() {
       const adminRoleId = existingAdmin.rows[0].id;
       for (const section of sections) {
         await client.query(
-          `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete)
-           VALUES ($1, $2, true, true, true, true)
+          `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete, can_approve)
+           VALUES ($1, $2, true, true, true, true, true)
            ON CONFLICT (rol_id, seccion) DO NOTHING`,
           [adminRoleId, section]
         );
@@ -73,37 +73,37 @@ async function seed() {
 
     for (const section of sections) {
       await client.query(
-        `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete)
-         VALUES ($1, $2, true, true, true, true)`,
+        `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete, can_approve)
+         VALUES ($1, $2, true, true, true, true, true)`,
         [adminRoleId, section]
       );
     }
 
     const jefaturaPermissions = [
-      { seccion: 'usuarios', view: true, create: false, edit: false, delete: false },
-      { seccion: 'permisos_administrativos', view: true, create: false, edit: true, delete: true },
-      { seccion: 'reportes', view: true, create: false, edit: false, delete: false },
-      { seccion: 'feriados', view: true, create: false, edit: false, delete: false },
+      { seccion: 'usuarios', view: true, create: false, edit: false, delete: false, approve: false },
+      { seccion: 'permisos_administrativos', view: true, create: false, edit: true, delete: true, approve: true },
+      { seccion: 'reportes', view: true, create: false, edit: false, delete: false, approve: false },
+      { seccion: 'feriados', view: true, create: false, edit: false, delete: false, approve: false },
     ];
 
     for (const perm of jefaturaPermissions) {
       await client.query(
-        `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [jefaturaRoleId, perm.seccion, perm.view, perm.create, perm.edit, perm.delete]
+        `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete, can_approve)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [jefaturaRoleId, perm.seccion, perm.view, perm.create, perm.edit, perm.delete, perm.approve]
       );
     }
 
     const trabajadorPermissions = [
-      { seccion: 'permisos_administrativos', view: true, create: true, edit: false, delete: false },
-      { seccion: 'reportes', view: true, create: false, edit: false, delete: false },
+      { seccion: 'permisos_administrativos', view: true, create: true, edit: false, delete: false, approve: false },
+      { seccion: 'reportes', view: true, create: false, edit: false, delete: false, approve: false },
     ];
 
     for (const perm of trabajadorPermissions) {
       await client.query(
-        `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [trabajadorRoleId, perm.seccion, perm.view, perm.create, perm.edit, perm.delete]
+        `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete, can_approve)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [trabajadorRoleId, perm.seccion, perm.view, perm.create, perm.edit, perm.delete, perm.approve]
       );
     }
 

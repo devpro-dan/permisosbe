@@ -31,6 +31,7 @@ export interface RolePermission {
   can_create: boolean;
   can_edit: boolean;
   can_delete: boolean;
+  can_approve: boolean;
 }
 
 export interface Permiso {

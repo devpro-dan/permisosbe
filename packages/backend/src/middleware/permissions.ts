@@ -1,13 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import pool from '../config/database';
 
-type PermissionAction = 'view' | 'create' | 'edit' | 'delete';
+type PermissionAction = 'view' | 'create' | 'edit' | 'delete' | 'approve';
 
 const actionColumnMap: Record<PermissionAction, string> = {
   view: 'can_view',
   create: 'can_create',
   edit: 'can_edit',
   delete: 'can_delete',
+  approve: 'can_approve',
 };
 
 export const authorize = (seccion: string, action: PermissionAction) => {

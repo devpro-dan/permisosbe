@@ -16,16 +16,12 @@ type Row = (Permiso & { _tipo: 'administrativo' }) | (PermisoMatrimonio & { _tip
 
 const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, tipoJornada: string, feriados: string[] = []): number => {
   const set = new Set(feriados);
-  const d1 = new Date((fechaFin || fechaInicio) ? (fechaInicio + 'T12:00:00') : '');
-  const d2 = new Date(((fechaFin || fechaInicio) + 'T12:00:00'));
+  const d1 = new Date(fechaInicio + 'T12:00:00');
+  const d2 = new Date((fechaFin || fechaInicio) + 'T12:00:00');
   if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return tipoJornada === 'media' ? 0.5 : 1;
   let count = 0; const cur = new Date(d1); const end = new Date(d2);
   while (cur <= end) { const iso = cur.toISOString().split('T')[0]; if (cur.getDay() !== 0 && cur.getDay() !== 6 && !set.has(iso)) count++; cur.setDate(cur.getDate() + 1); }
   if (count === 0) count = 1; return tipoJornada === 'media' ? Math.max(0.5, count - 0.5) : count;
-};
-const countBusinessDays = (inicio: string, fin: string): number => {
-  const d1 = new Date(inicio + 'T12:00:00'); const d2 = new Date(fin + 'T12:00:00'); let count = 0; const cur = new Date(d1);
-  while (cur <= d2) { if (cur.getDay() !== 0 && cur.getDay() !== 6) count++; cur.setDate(cur.getDate() + 1); } return count;
 };
 
 export default function GestionPermisos() {
@@ -56,11 +52,11 @@ export default function GestionPermisos() {
   const [editModal, setEditModal] = useState<{ row: Row | null; open: boolean }>({ row: null, open: false });
   const [editFechaInicio, setEditFechaInicio] = useState('');
   const [editCantidadDias, setEditCantidadDias] = useState(1);
-  const [editTipoJornada, setEditTipoJornada] = useState<'completa' | 'media'>('completa');
   const [editMotivo, setEditMotivo] = useState('');
   const [editError, setEditError] = useState('');
   const [feriados, setFeriados] = useState<string[]>([]);
   const puedeEditar = user?.rolId === 1 || user?.rolId === 2;
+  const puedeAprobar = user?.permissions?.some((p) => p.seccion === 'permisos_administrativos' && p.can_approve) ?? false;
 
   useEffect(() => { feriadoApi.list(new Date().getFullYear()).then((res) => setFeriados(res.data.map((f: any) => f.fecha))).catch(() => {}); }, []);
   const load = () => {
@@ -156,14 +152,15 @@ export default function GestionPermisos() {
 
   const handleEditOpen = (row: Row) => {
     setEditFechaInicio(row.fecha_inicio);
-    if (row._tipo === 'matrimonio') { setEditCantidadDias(5); setEditTipoJornada('completa'); }
-    else { const dias = calcularDias(row.fecha_inicio, (row as Permiso).fecha_fin, (row as Permiso).tipo_jornada || 'completa', feriados); setEditCantidadDias(dias); setEditTipoJornada((row as Permiso).tipo_jornada || 'completa'); }
+    if (row._tipo === 'matrimonio') setEditCantidadDias(5);
+    else { const dias = calcularDias(row.fecha_inicio, (row as Permiso).fecha_fin, (row as Permiso).tipo_jornada || 'completa', feriados); setEditCantidadDias(dias); }
     setEditMotivo(row.motivo); setEditError(''); setEditModal({ row, open: true });
   };
   const handleEditSave = async () => {
     if (!editModal.row) return;
     if (isWeekend(editFechaInicio)) { setEditError('La fecha de inicio no puede ser fin de semana'); return; }
     if (feriados.includes(editFechaInicio)) { setEditError('La fecha de inicio corresponde a un feriado'); return; }
+    if (editModal.row._tipo !== 'matrimonio' && (isWeekend(editFechaFin) || feriados.includes(editFechaFin))) { setEditError('La fecha de término calculada cae en fin de semana/feriado, elige otra fecha de inicio'); return; }
     setSavingEdit(true);
     try {
       if (editModal.row._tipo === 'matrimonio') {
@@ -274,7 +271,7 @@ export default function GestionPermisos() {
           <p className="text-sm">{formatDate(p.fecha_inicio)}{p.fecha_fin ? ` - ${formatDate(p.fecha_fin)}` : ''} — <span className="font-semibold">{p._tipo === 'matrimonio' ? '5 días' : `${calcularDias(p.fecha_inicio, (p as any).fecha_fin, (p as any).tipo_jornada || 'completa', feriados)} días`}</span></p>
           <div className="flex items-center gap-2">{estadoBadge(p.estado)}</div>
           <p className="text-sm text-gray-600">{p.motivo}</p>
-          {p.estado === 'en_revision' && <div className="flex gap-2 mt-2"><button onClick={() => handleEditOpen(p)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-primary-600 text-white rounded-lg"><Pencil className="w-3.5 h-3.5" /> Editar</button><button onClick={() => handleAprobar(p)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-success-600 text-white rounded-lg"><CheckCircle className="w-3.5 h-3.5" /> Aprobar</button><button onClick={() => setRechazoModal({ id: p.id, tipo: p._tipo as any, open: true })} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-danger-600 text-white rounded-lg"><XCircle className="w-3.5 h-3.5" /> Rechazar</button></div>}
+          {p.estado === 'en_revision' && <div className="flex gap-2 mt-2"><button onClick={() => handleEditOpen(p)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-primary-600 text-white rounded-lg"><Pencil className="w-3.5 h-3.5" /> Editar</button>{puedeAprobar && <button onClick={() => handleAprobar(p)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-success-600 text-white rounded-lg"><CheckCircle className="w-3.5 h-3.5" /> Aprobar</button>}<button onClick={() => setRechazoModal({ id: p.id, tipo: p._tipo as any, open: true })} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-danger-600 text-white rounded-lg"><XCircle className="w-3.5 h-3.5" /> Rechazar</button></div>}
           {p.estado === 'aprobado' && <div className="flex gap-2 mt-2">{renderComprobanteActions(p)}</div>}
         </MobileCard>
       ))}

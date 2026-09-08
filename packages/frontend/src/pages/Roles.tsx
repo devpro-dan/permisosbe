@@ -48,7 +48,7 @@ export default function Roles() {
     }
   };
 
-  type PermField = 'can_view' | 'can_create' | 'can_edit' | 'can_delete';
+  type PermField = 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_approve';
   const togglePerm = (seccion: string, field: PermField) => {
     setPermissions((prev) => {
       const exists = prev.find((p) => p.seccion === seccion);
@@ -57,7 +57,7 @@ export default function Roles() {
           p.seccion === seccion ? { ...p, [field]: !p[field] } : p
         );
       }
-      const newPerm: RolePermission = { id: 0, rol_id: 0, seccion, can_view: false, can_create: false, can_edit: false, can_delete: false };
+      const newPerm: RolePermission = { id: 0, rol_id: 0, seccion, can_view: false, can_create: false, can_edit: false, can_delete: false, can_approve: false };
       newPerm[field] = true;
       return [...prev, newPerm];
     });
@@ -74,6 +74,7 @@ export default function Roles() {
           can_create: perm.can_create,
           can_edit: perm.can_edit,
           can_delete: perm.can_delete,
+          can_approve: perm.can_approve,
         });
       }
       setPermModal({ role: null, open: false });
@@ -206,23 +207,23 @@ export default function Roles() {
         <div className="space-y-4">
           {SECCIONES.map((seccion) => {
             const perm = permissions.find((p) => p.seccion === seccion) || {
-              seccion, can_view: false, can_create: false, can_edit: false, can_delete: false,
+              seccion, can_view: false, can_create: false, can_edit: false, can_delete: false, can_approve: false,
             } as RolePermission;
             return (
               <div key={seccion} className="border rounded-lg p-3">
                 <p className="font-medium text-sm capitalize mb-2">{seccion.replace(/_/g, ' ')}</p>
                 <div className="flex gap-4">
-                  {(['can_view', 'can_create', 'can_edit', 'can_delete'] as PermField[]).map((field) => (
-                    <label key={field} className="flex items-center gap-1 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={perm[field] as boolean}
-                        onChange={() => togglePerm(seccion, field)}
-                        className="rounded"
-                      />
-                      {field === 'can_view' ? 'Ver' : field === 'can_create' ? 'Crear' : field === 'can_edit' ? 'Editar' : 'Eliminar'}
-                    </label>
-                  ))}
+                   {(['can_view', 'can_create', 'can_edit', 'can_delete', 'can_approve'] as PermField[]).map((field) => (
+                     <label key={field} className="flex items-center gap-1 text-xs">
+                       <input
+                         type="checkbox"
+                         checked={perm[field] as boolean}
+                         onChange={() => togglePerm(seccion, field)}
+                         className="rounded"
+                       />
+                       {field === 'can_view' ? 'Ver' : field === 'can_create' ? 'Crear' : field === 'can_edit' ? 'Editar' : field === 'can_approve' ? 'Aprobar' : 'Eliminar'}
+                     </label>
+                   ))}
                 </div>
               </div>
             );

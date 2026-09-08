@@ -43,15 +43,16 @@ export const roleRepository = {
 
   async setPermission(rolId: number, seccion: string, perms: Partial<RolePermission>): Promise<RolePermission> {
     const result = await pool.query(
-      `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO role_permissions (rol_id, seccion, can_view, can_create, can_edit, can_delete, can_approve)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (rol_id, seccion) 
        DO UPDATE SET can_view = COALESCE($3, role_permissions.can_view),
                      can_create = COALESCE($4, role_permissions.can_create),
                      can_edit = COALESCE($5, role_permissions.can_edit),
-                     can_delete = COALESCE($6, role_permissions.can_delete)
+                     can_delete = COALESCE($6, role_permissions.can_delete),
+                     can_approve = COALESCE($7, role_permissions.can_approve)
        RETURNING *`,
-      [rolId, seccion, perms.can_view, perms.can_create, perms.can_edit, perms.can_delete]
+      [rolId, seccion, perms.can_view, perms.can_create, perms.can_edit, perms.can_delete, perms.can_approve]
     );
     return result.rows[0];
   },

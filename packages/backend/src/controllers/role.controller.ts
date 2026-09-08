@@ -93,12 +93,12 @@ export const roleController = {
   async setPermission(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const { seccion, can_view, can_create, can_edit, can_delete } = req.body;
+      const { seccion, can_view, can_create, can_edit, can_delete, can_approve } = req.body;
       if (!seccion) {
         res.status(400).json({ message: 'Sección requerida' });
         return;
       }
-      const perm = await roleRepository.setPermission(id, seccion, { can_view, can_create, can_edit, can_delete });
+      const perm = await roleRepository.setPermission(id, seccion, { can_view, can_create, can_edit, can_delete, can_approve });
       await auditLogService.register(req, 'set_permission', 'rol', id, `Configuró permisos de rol #${id} - sección: ${seccion}`);
       res.json(perm);
     } catch (error) {

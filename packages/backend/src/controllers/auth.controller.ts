@@ -103,7 +103,7 @@ export const authController = {
       }
       const { password_hash, rol_id, ...rest } = user;
       const permissions = await pool.query(
-        'SELECT seccion, can_view, can_create, can_edit, can_delete FROM role_permissions WHERE rol_id = $1',
+        'SELECT seccion, can_view, can_create, can_edit, can_delete, can_approve FROM role_permissions WHERE rol_id = $1',
         [rol_id]
       );
       res.json({ ...rest, rolId: rol_id, permissions: permissions.rows });
