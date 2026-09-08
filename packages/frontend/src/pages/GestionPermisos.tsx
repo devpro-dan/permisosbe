@@ -56,7 +56,7 @@ export default function GestionPermisos() {
   const [editError, setEditError] = useState('');
   const [feriados, setFeriados] = useState<string[]>([]);
   const puedeEditar = user?.rolId === 1 || user?.rolId === 2;
-  const puedeAprobar = user?.permissions?.some((p) => p.seccion === 'permisos_administrativos' && p.can_approve) ?? false;
+  const puedeAprobar = user?.permissions?.some((p) => p.seccion === 'permisos_administrativos' && p.can_approve) ?? (user?.rolId === 1 || user?.rolId === 2);
 
   useEffect(() => { feriadoApi.list(new Date().getFullYear()).then((res) => setFeriados(res.data.map((f: any) => f.fecha))).catch(() => {}); }, []);
   const load = () => {
