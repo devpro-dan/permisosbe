@@ -21,7 +21,7 @@ const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, 
   if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return tipoJornada === 'media' ? 0.5 : 1;
   let count = 0; const cur = new Date(d1); const end = new Date(d2);
   while (cur <= end) { const iso = cur.toISOString().split('T')[0]; if (cur.getDay() !== 0 && cur.getDay() !== 6 && !set.has(iso)) count++; cur.setDate(cur.getDate() + 1); }
-  if (count === 0) count = 1; return tipoJornada === 'media' ? count * 0.5 : count;
+  if (count === 0) count = 1; return tipoJornada === 'media' ? Math.max(0.5, count - 0.5) : count;
 };
 const countBusinessDays = (inicio: string, fin: string): number => {
   const d1 = new Date(inicio + 'T12:00:00'); const d2 = new Date(fin + 'T12:00:00'); let count = 0; const cur = new Date(d1);
@@ -151,13 +151,13 @@ export default function GestionPermisos() {
   const editFechaFin = useMemo(() => {
     if (!editModal.row) return '';
     if (editModal.row._tipo === 'matrimonio') return editFechaInicio ? addBusinessDays(editFechaInicio, 4, feriados) : '';
-    return editFechaInicio ? addBusinessDays(editFechaInicio, editCantidadDias - 1, feriados) : '';
+    return editFechaInicio ? addBusinessDays(editFechaInicio, Math.ceil(editCantidadDias) - 1, feriados) : '';
   }, [editFechaInicio, editCantidadDias, feriados, editModal.row]);
 
   const handleEditOpen = (row: Row) => {
     setEditFechaInicio(row.fecha_inicio);
     if (row._tipo === 'matrimonio') { setEditCantidadDias(5); setEditTipoJornada('completa'); }
-    else { const fin = (row as Permiso).fecha_fin || row.fecha_inicio; setEditCantidadDias(countBusinessDays(row.fecha_inicio, fin)); setEditTipoJornada((row as Permiso).tipo_jornada || 'completa'); }
+    else { const dias = calcularDias(row.fecha_inicio, (row as Permiso).fecha_fin, (row as Permiso).tipo_jornada || 'completa', feriados); setEditCantidadDias(dias); setEditTipoJornada((row as Permiso).tipo_jornada || 'completa'); }
     setEditMotivo(row.motivo); setEditError(''); setEditModal({ row, open: true });
   };
   const handleEditSave = async () => {
@@ -169,7 +169,8 @@ export default function GestionPermisos() {
       if (editModal.row._tipo === 'matrimonio') {
         await matrimonioApi.update(editModal.row.id, { fecha_inicio: editFechaInicio, fecha_fin: editFechaFin, motivo: editMotivo });
       } else {
-        await permisoApi.update(editModal.row.id, { fecha_inicio: editFechaInicio, fecha_fin: editFechaFin, tipo_jornada: editCantidadDias > 1 ? 'completa' : editTipoJornada, motivo: editMotivo });
+        const tipoJornadaDerivada = Number.isInteger(editCantidadDias) ? 'completa' as const : 'media' as const;
+        await permisoApi.update(editModal.row.id, { fecha_inicio: editFechaInicio, fecha_fin: editFechaFin, tipo_jornada: tipoJornadaDerivada, motivo: editMotivo });
       }
       toast({ message: 'Permiso actualizado correctamente', type: 'success' }); setEditModal({ row: null, open: false }); load();
     } catch (err: any) { setEditError(err.response?.data?.message || 'Error al editar permiso'); } finally { setSavingEdit(false); }
@@ -293,10 +294,9 @@ export default function GestionPermisos() {
             </>
           ) : (
             <>
-              <div><label className="block text-sm font-medium mb-1">Cantidad de Días</label><input type="number" min={1} max={6} value={editCantidadDias} onChange={(e) => setEditCantidadDias(Math.min(6, Math.max(1, parseInt(e.target.value) || 1)))} className="w-full px-4 py-2 border rounded-lg outline-none" required /></div>
+              <div><label className="block text-sm font-medium mb-1">Cantidad de Días (permite 0.5 — ej 1.5, 2.5)</label><input type="number" min={0.5} max={6} step={0.5} value={editCantidadDias} onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) setEditCantidadDias(Math.min(6, Math.max(0.5, Math.round(v*2)/2))); }} className="w-full px-4 py-2 border rounded-lg outline-none" required /></div>
               <div><label className="block text-sm font-medium mb-1">Fecha Fin</label><input type="date" value={editFechaFin} readOnly className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed" /></div>
-              {editCantidadDias === 1 && <div><label className="block text-sm font-medium mb-1">Tipo de Jornada</label><select value={editTipoJornada} onChange={(e) => setEditTipoJornada(e.target.value as any)} className="w-full px-4 py-2 border rounded-lg outline-none"><option value="completa">Jornada Completa</option><option value="media">Media Jornada</option></select></div>}
-              {editCantidadDias > 1 && <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm">Para múltiples días, la jornada será completa.</div>}
+              <div className={`px-4 py-2 rounded-lg text-sm ${Number.isInteger(editCantidadDias) ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>{Number.isInteger(editCantidadDias) ? `Jornada completa — ${editCantidadDias} día${editCantidadDias===1?'':'s'} hábiles` : `Media jornada el último día — total ${editCantidadDias} días (${Math.ceil(editCantidadDias)} hábiles, último medio)`}</div>
             </>
           )}
           <div><label className="block text-sm font-medium mb-1">Motivo</label><textarea value={editMotivo} onChange={(e) => setEditMotivo(e.target.value)} rows={4} className="w-full px-4 py-2 border rounded-lg outline-none" required /></div>

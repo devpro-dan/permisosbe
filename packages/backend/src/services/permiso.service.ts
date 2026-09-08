@@ -38,7 +38,7 @@ export const permisoService = {
       const cur = new Date(d1);
       while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); }
       if (count === 0) count = 1;
-      const dias = p.tipo_jornada === 'media' ? count * 0.5 : count;
+      const dias = p.tipo_jornada === 'media' ? Math.max(0.5, count - 0.5) : count;
       used += dias;
     }
     used = Math.round(used * 10) / 10;
@@ -217,8 +217,8 @@ export const permisoService = {
     for (const p of permisosResult.rows) {
       const d1 = new Date(p.fecha_inicio + 'T12:00:00');
       const d2 = new Date((p.fecha_fin || p.fecha_inicio) + 'T12:00:00');
-      const diffDays = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000) + 1);
-      const dias = p.tipo_jornada === 'media' ? diffDays * 0.5 : diffDays;
+      let count = 0; const cur = new Date(d1); while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); } if (count === 0) count = 1;
+      const dias = p.tipo_jornada === 'media' ? Math.max(0.5, count - 0.5) : count;
       usedByUser[p.user_id] = (usedByUser[p.user_id] || 0) + dias;
     }
 
@@ -277,10 +277,11 @@ export const permisoService = {
     };
 
     return result.rows.map((p) => {
-      const d1 = Math.max(new Date(p.fecha_inicio + 'T12:00:00').getTime(), new Date(start + 'T12:00:00').getTime());
-      const d2 = Math.min(new Date((p.fecha_fin || p.fecha_inicio) + 'T12:00:00').getTime(), new Date(end + 'T12:00:00').getTime());
-      const diffDays = Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
-      const dias = p.tipo_jornada === 'media' ? diffDays * 0.5 : diffDays;
+      const sD = p.fecha_inicio < start ? start : p.fecha_inicio;
+      const eD = (p.fecha_fin || p.fecha_inicio) > end ? end : (p.fecha_fin || p.fecha_inicio);
+      const d1 = new Date(sD + 'T12:00:00'); const d2 = new Date(eD + 'T12:00:00');
+      let count = 0; const cur = new Date(d1); while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); } if (count === 0) count = 1;
+      const dias = p.tipo_jornada === 'media' ? Math.max(0.5, count - 0.5) : count;
       const diasStr = dias === 0.5 ? 'media' : Number.isInteger(dias) ? String(dias) : String(Math.round(dias * 10) / 10).replace('.', ',');
       return {
         nombre: `${p.nombres} ${p.apellido_paterno}${p.apellido_materno ? ` ${p.apellido_materno}` : ''}`.trim(),
@@ -364,7 +365,7 @@ export const permisoService = {
       const cur = new Date(d1);
       while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); }
       if (count === 0) count = 1;
-      return p.tipo_jornada === 'media' ? count * 0.5 : count;
+      return p.tipo_jornada === 'media' ? Math.max(0.5, count - 0.5) : count;
     };
 
     const byUserMes: Record<number, { user: any; count: number; dias: number }> = {};
@@ -385,7 +386,7 @@ export const permisoService = {
       const cur = new Date(d1);
       while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); }
       if (count === 0) count = 1;
-      const dias = r.tipo_jornada === 'media' ? count * 0.5 : count;
+      const dias = r.tipo_jornada === 'media' ? Math.max(0.5, count - 0.5) : count;
       usedMap[r.user_id] = Math.round(((usedMap[r.user_id] || 0) + dias) * 10) / 10;
     }
 

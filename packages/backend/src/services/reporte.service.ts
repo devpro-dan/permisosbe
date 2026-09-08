@@ -42,10 +42,9 @@ function addReportFooter(doc: PDFKit.PDFDocument, margin: number) {
   drawReportFooter(doc, margin, generated);
 }
 
-function calcularDias(inicio: string, fin: string | undefined | null): number {
-  if (!fin || fin === inicio) return 1;
+function calcularDias(inicio: string, fin: string | undefined | null, tipoJornada?: string): number {
   const d1 = new Date(inicio + 'T12:00:00');
-  const d2 = new Date(fin + 'T12:00:00');
+  const d2 = new Date((fin || inicio) + 'T12:00:00');
   let count = 0;
   const cur = new Date(d1);
   while (cur <= d2) {
@@ -53,7 +52,9 @@ function calcularDias(inicio: string, fin: string | undefined | null): number {
     if (day !== 0 && day !== 6) count++;
     cur.setDate(cur.getDate() + 1);
   }
-  return Math.max(1, count);
+  if (count === 0) count = 1;
+  if (tipoJornada === 'media') return Math.max(0.5, count - 0.5);
+  return count;
 }
 
 const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -159,7 +160,7 @@ export const reporteService = {
       const rows = permisos.map((p, i) => {
         const estadoLabel = p.estado === 'en_revision' ? 'En Revisión' : p.estado === 'aprobado' ? 'Aprobado' : 'Rechazado';
         const tipo = p._tipo === 'matrimonio' ? 'Matrimonio' : 'Administrativo';
-        const dias = p._tipo === 'matrimonio' ? 5 : calcularDias(p.fecha_inicio, p.fecha_fin);
+        const dias = p._tipo === 'matrimonio' ? 5 : calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada);
         return [
           i + 1,
           `${p.nombres || ''} ${p.apellido_paterno || ''}`.trim(),
@@ -300,7 +301,7 @@ export const reporteService = {
       fecha_solicitud: p.fecha_solicitud,
       fecha_inicio: p.fecha_inicio,
       fecha_fin: p.fecha_fin || '',
-      dias: p._tipo === 'matrimonio' ? 5 : calcularDias(p.fecha_inicio, p.fecha_fin),
+      dias: p._tipo === 'matrimonio' ? 5 : calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada),
       tipo_jornada: p._tipo === 'matrimonio' ? '-' : p.tipo_jornada,
       estado: p.estado,
       motivo: p.motivo,
@@ -393,7 +394,7 @@ export const reporteService = {
             String(idx + 1),
             fmtDate(p.fecha_inicio),
             p.fecha_fin ? fmtDate(p.fecha_fin) : '-',
-            String(calcularDias(p.fecha_inicio, p.fecha_fin)),
+            String(calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)),
             jornadaLabel(p.tipo_jornada),
             estadoLabel(p.estado),
             p.motivo || '-',
@@ -496,8 +497,8 @@ export const reporteService = {
 
       const anio = new Date().getFullYear();
       const fechaActual = new Date();
-      const diasNum = permiso.tipo_jornada === 'media' ? 0.5 : calcularDias(permiso.fecha_inicio, permiso.fecha_fin);
-      const diasTexto = diasNum === 0.5 ? 'media' : String(diasNum);
+      const diasNum = calcularDias(permiso.fecha_inicio, permiso.fecha_fin, permiso.tipo_jornada);
+      const diasTexto = diasNum === 0.5 ? 'media' : String(diasNum).replace('.',',');
       const diasPalabra = diasNum === 1 ? 'día' : 'días';
       const dias = diasNum;
       const fechaInicio = fmtDate(permiso.fecha_inicio);

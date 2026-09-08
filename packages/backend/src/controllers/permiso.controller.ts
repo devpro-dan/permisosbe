@@ -73,14 +73,14 @@ function mensajeFeriado(feriado: { fecha: string; descripcion: string }): string
 }
 
 function calcDiasSolicitud(inicio: string, fin: string | undefined, tipo: string): number {
-  if (tipo === 'media') return 0.5;
-  if (!fin || fin === inicio) return 1;
   const d1 = new Date(inicio + 'T12:00:00');
-  const d2 = new Date(fin + 'T12:00:00');
+  const d2 = new Date((fin || inicio) + 'T12:00:00');
   let count = 0;
   const cur = new Date(d1);
   while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); }
-  return Math.max(1, count);
+  if (count === 0) count = 1;
+  if (tipo === 'media') return Math.max(0.5, count - 0.5);
+  return count;
 }
 
 function parseCantidadDias(raw: any): number | null {
@@ -88,9 +88,9 @@ function parseCantidadDias(raw: any): number | null {
   const s = String(raw).trim().toLowerCase().replace(',', '.');
   if (s === 'medio' || s === 'media' || s === '0.5' || s === '.5') return 0.5;
   const n = Number(s);
-  if (n === 0.5) return 0.5;
-  if (Number.isInteger(n) && n >= 1 && n <= 6) return n;
-  return null;
+  if (isNaN(n) || n < 0.5 || n > 6) return null;
+  if (Math.round(n * 2) / 2 !== n) return null;
+  return Math.round(n * 10) / 10;
 }
 
 function getReportFilters(body: any) {
@@ -165,8 +165,9 @@ export const permisoController = {
       let fechaFinAjustada: string | undefined = fecha_fin || undefined;
       if (fechaFinAjustada) {
         const diasHabilesSolicitados = calcDiasSolicitud(fecha_inicio, fechaFinAjustada, tipo_jornada);
+        const businessDays = tipo_jornada === 'media' ? Math.ceil(diasHabilesSolicitados) : diasHabilesSolicitados;
         let cur = new Date(fecha_inicio + 'T12:00:00');
-        let remaining = tipo_jornada === 'media' ? 0 : diasHabilesSolicitados - 1;
+        let remaining = Math.max(0, businessDays - 1);
         let safety = 0;
         while (remaining > 0 && safety < 60) {
           cur.setDate(cur.getDate() + 1);
@@ -177,7 +178,7 @@ export const permisoController = {
           remaining--; safety++;
         }
         fechaFinAjustada = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
-        if (tipo_jornada === 'media') fechaFinAjustada = fecha_inicio;
+        if (tipo_jornada === 'media' && diasHabilesSolicitados === 0.5) fechaFinAjustada = fecha_inicio;
       }
 
       const permiso = await permisoService.create({
@@ -353,8 +354,9 @@ export const permisoController = {
       let fechaFinAjustada2: string | undefined = fecha_fin || undefined;
       if (fechaFinAjustada2) {
         const diasHabilesSolicitados = calcDiasSolicitud(fecha_inicio, fechaFinAjustada2, tipo_jornada);
+        const businessDays = tipo_jornada === 'media' ? Math.ceil(diasHabilesSolicitados) : diasHabilesSolicitados;
         let cur = new Date(fecha_inicio + 'T12:00:00');
-        let remaining = tipo_jornada === 'media' ? 0 : diasHabilesSolicitados - 1;
+        let remaining = Math.max(0, businessDays - 1);
         let safety = 0;
         while (remaining > 0 && safety < 60) {
           cur.setDate(cur.getDate() + 1);
@@ -365,7 +367,7 @@ export const permisoController = {
           remaining--; safety++;
         }
         fechaFinAjustada2 = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
-        if (tipo_jornada === 'media') fechaFinAjustada2 = fecha_inicio;
+        if (tipo_jornada === 'media' && diasHabilesSolicitados === 0.5) fechaFinAjustada2 = fecha_inicio;
       }
 
       const permiso = await permisoService.create({
@@ -778,8 +780,8 @@ export const permisoController = {
         { campo: 'rut', req: 'Sí', formato: 'Sólo números y K, sin puntos ni guion', ejemplo: '12345678', desc: 'Identifica al funcionario. Debe existir en la plataforma. Clave foránea permisos_administrativos.user_id → users.id' },
         { campo: 'dv', req: 'Sí', formato: '0-9 o K (1 carácter)', ejemplo: '5', desc: 'Dígito verificador del RUT.' },
         { campo: 'fecha_inicio', req: 'Sí', formato: 'YYYY-MM-DD', ejemplo: '2026-03-02', desc: 'Fecha inicio del permiso. No puede ser fin de semana ni feriado.' },
-        { campo: 'cantidad_dias', req: 'Sí', formato: '1 a 6, 0.5 o medio', ejemplo: '2', desc: 'Cantidad de días hábiles. Admite 0.5 o medio (=0.5). La fecha_fin se calcula automáticamente (días hábiles consecutivos, saltando fines de semana y feriados).' },
-        { campo: 'tipo_jornada', req: 'Sí', formato: 'completa | media', ejemplo: 'completa', desc: 'Si cantidad_dias > 1 debe ser completa. Si cantidad_dias es 0.5/medio debe ser media. Media solo para 1 día o 0.5.' },
+        { campo: 'cantidad_dias', req: 'Sí', formato: '0.5 a 6 en pasos de 0.5', ejemplo: '2.5', desc: 'Cantidad de días hábiles. Admite .5 (ej 0.5,1.5,2.5). La fecha_fin se calcula automáticamente (días hábiles consecutivos, saltando finde/feriado).' },
+        { campo: 'tipo_jornada', req: 'Sí', formato: 'completa | media', ejemplo: 'completa', desc: 'completa para entero (1,2,3...), media para .5 (0.5,1.5,2.5...). Ej 2.5 días = 2 completos + media jornada.' },
         { campo: 'motivo', req: 'Sí', formato: 'Texto libre (máx 500)', ejemplo: 'Trámite personal', desc: 'Motivo del permiso administrativo.' },
       ]);
       instrucciones.getRow(1).font = { bold: true };
@@ -887,18 +889,19 @@ export const permisoController = {
           if (!motivoRaw) error = 'Motivo requerido';
           else if (!['completa', 'media'].includes(tipoJornadaRaw)) error = 'tipo_jornada debe ser completa o media';
           else if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_inicio)) error = `fecha_inicio inválida (${fechaInicioRaw})`;
-          else if (cantidadDias === null) error = `cantidad_dias inválida (${cantidadRaw}) debe ser 1 a 6, 0.5 o medio`;
-          else if (cantidadDias === 0.5 && tipoJornadaRaw !== 'media') error = 'cantidad_dias 0.5/medio solo permite tipo_jornada media';
-          else if (tipoJornadaRaw === 'media' && cantidadDias !== 1 && cantidadDias !== 0.5) error = 'Media jornada solo permite cantidad_dias = 1 o 0.5/medio';
+          else if (cantidadDias === null) error = `cantidad_dias inválida (${cantidadRaw}) debe ser 0.5 a 6 en pasos de 0.5 (ej 0.5,1,1.5,2...) o medio`;
+          else if (cantidadDias! % 1 !== 0 && tipoJornadaRaw !== 'media') error = 'cantidad_dias con .5 (ej 1.5,2.5) solo permite tipo_jornada media';
+          else if (cantidadDias! % 1 === 0 && tipoJornadaRaw === 'media' && cantidadDias !== 1) error = 'tipo_jornada media solo permite cantidad_dias con .5 (0.5,1.5,2.5...) o 1';
           else if (isWeekend(fecha_inicio)) error = 'fecha_inicio no puede ser fin de semana';
           else {
             const feriadosInicio = await feriadosEnRango(fecha_inicio, fecha_inicio);
             if (feriadosInicio.length > 0) error = mensajeFeriado(feriadosInicio[0]);
           }
           if (!error) {
-            const addBusinessDaysCalc = async (inicio: string, dias: number): Promise<string> => {
-              if (dias <= 1) return inicio;
-              let cur = new Date(inicio + 'T12:00:00'); let remaining = dias - 1; let safety = 0;
+            const addBusinessDaysCalc = async (inicio: string, dias: number, tipo: string): Promise<string> => {
+              const businessDays = tipo === 'media' ? Math.ceil(dias) : dias;
+              if (businessDays <= 1) return inicio;
+              let cur = new Date(inicio + 'T12:00:00'); let remaining = businessDays - 1; let safety = 0;
               while (remaining > 0 && safety < 60) {
                 cur.setDate(cur.getDate() + 1);
                 const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
@@ -909,7 +912,8 @@ export const permisoController = {
               }
               return `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
             };
-            fecha_fin = cantidadDias! > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias!) : undefined;
+            const _businessDays = tipoJornadaRaw === 'media' ? Math.ceil(cantidadDias!) : cantidadDias!;
+            fecha_fin = _businessDays > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias!, tipoJornadaRaw) : undefined;
             if (fecha_fin) {
               const feriadosFin = await feriadosEnRango(fecha_fin, fecha_fin);
               if (feriadosFin.length > 0) error = mensajeFeriado(feriadosFin[0]);
@@ -925,7 +929,8 @@ export const permisoController = {
               else {
                 const userId = r.rows[0].id;
                 const disponibilidad = await permisoService.getAvailablePermisos(userId);
-                const diasNecesarios = tipoJornadaRaw === 'media' || cantidadDias === 0.5 ? 0.5 : cantidadDias!;
+                let diasNecesarios = cantidadDias!;
+                if (tipoJornadaRaw === 'media' && cantidadDias === 1) diasNecesarios = 0.5;
                 if (diasNecesarios > disponibilidad.available) {
                   const reqStr = diasNecesarios === 0.5 ? 'media jornada' : String(diasNecesarios);
                   error = `Solicita ${reqStr} día${diasNecesarios === 1 || diasNecesarios === 0.5 ? '' : 's'}, solo quedan ${disponibilidad.available} disponibles de ${disponibilidad.max}`;
@@ -993,15 +998,16 @@ export const permisoController = {
           if (!motivoRaw) { errors.push({ fila: rowNumber, message: 'Motivo requerido' }); continue; }
           if (!['completa', 'media'].includes(tipoJornadaRaw)) { errors.push({ fila: rowNumber, message: 'tipo_jornada debe ser completa o media' }); continue; }
           if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_inicio)) { errors.push({ fila: rowNumber, message: `fecha_inicio inválida (${fechaInicioRaw}) use YYYY-MM-DD` }); continue; }
-          if (cantidadDias === null) { errors.push({ fila: rowNumber, message: `cantidad_dias inválida (${cantidadRaw}) debe ser 1 a 6, 0.5 o medio` }); continue; }
-          if (cantidadDias === 0.5 && tipoJornadaRaw !== 'media') { errors.push({ fila: rowNumber, message: 'cantidad_dias 0.5/medio solo permite tipo_jornada media' }); continue; }
-          if (tipoJornadaRaw === 'media' && cantidadDias !== 1 && cantidadDias !== 0.5) { errors.push({ fila: rowNumber, message: 'Media jornada solo permite cantidad_dias = 1 o 0.5/medio' }); continue; }
+          if (cantidadDias === null) { errors.push({ fila: rowNumber, message: `cantidad_dias inválida (${cantidadRaw}) debe ser 0.5 a 6 en pasos de 0.5 (ej 0.5,1,1.5...) o medio` }); continue; }
+          if (cantidadDias! % 1 !== 0 && tipoJornadaRaw !== 'media') { errors.push({ fila: rowNumber, message: 'cantidad_dias con .5 (ej 1.5,2.5) solo permite tipo_jornada media' }); continue; }
+          if (cantidadDias! % 1 === 0 && tipoJornadaRaw === 'media' && cantidadDias !== 1) { errors.push({ fila: rowNumber, message: 'tipo_jornada media solo permite cantidad_dias con .5 (0.5,1.5...) o 1' }); continue; }
           if (isWeekend(fecha_inicio)) { errors.push({ fila: rowNumber, message: 'fecha_inicio no puede ser fin de semana' }); continue; }
           const feriadosInicio = await feriadosEnRango(fecha_inicio, fecha_inicio);
           if (feriadosInicio.length > 0) { errors.push({ fila: rowNumber, message: mensajeFeriado(feriadosInicio[0]) }); continue; }
-          const addBusinessDaysCalc = async (inicio: string, dias: number): Promise<string> => {
-            if (dias <= 1) return inicio;
-            let cur = new Date(inicio + 'T12:00:00'); let remaining = dias - 1; let safety = 0;
+          const addBusinessDaysCalc = async (inicio: string, dias: number, tipo: string): Promise<string> => {
+            const businessDays = tipo === 'media' ? Math.ceil(dias) : dias;
+            if (businessDays <= 1) return inicio;
+            let cur = new Date(inicio + 'T12:00:00'); let remaining = businessDays - 1; let safety = 0;
             while (remaining > 0 && safety < 60) {
               cur.setDate(cur.getDate() + 1);
               const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
@@ -1012,7 +1018,8 @@ export const permisoController = {
             }
             return `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
           };
-          const fecha_fin = cantidadDias! > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias!) : undefined;
+          const _bd = tipoJornadaRaw === 'media' ? Math.ceil(cantidadDias!) : cantidadDias!;
+          const fecha_fin = _bd > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias!, tipoJornadaRaw) : undefined;
           if (fecha_fin) {
             const feriadosFin = await feriadosEnRango(fecha_fin, fecha_fin);
             if (feriadosFin.length > 0) { errors.push({ fila: rowNumber, message: mensajeFeriado(feriadosFin[0]) }); continue; }
@@ -1027,7 +1034,8 @@ export const permisoController = {
             else { errors.push({ fila: rowNumber, message: `Usuario no encontrado por RUT ${rutNorm}-${dvNorm}` }); continue; }
           }
           const disponibilidad = await permisoService.getAvailablePermisos(userId!);
-          const diasNecesarios2 = tipoJornadaRaw === 'media' || cantidadDias === 0.5 ? 0.5 : cantidadDias!;
+          let diasNecesarios2 = cantidadDias!;
+          if (tipoJornadaRaw === 'media' && cantidadDias === 1) diasNecesarios2 = 0.5;
           if (diasNecesarios2 > disponibilidad.available) {
             const reqStr = diasNecesarios2 === 0.5 ? 'media jornada' : String(diasNecesarios2);
             errors.push({ fila: rowNumber, message: `Solicita ${reqStr} día${diasNecesarios2 === 1 || diasNecesarios2 === 0.5 ? '' : 's'}, solo quedan ${disponibilidad.available} disponibles de ${disponibilidad.max}` }); continue;

@@ -11,7 +11,7 @@ import { formatDate } from '../utils/format';
 const calcularDias = (fechaInicio: string, fechaFin: string | null | undefined, tipoJornada: string): number => {
   const d1 = new Date(fechaInicio + "T12:00:00");
   const d2 = new Date((fechaFin || fechaInicio) + "T12:00:00");
-  let count = 0; const cur = new Date(d1); while (cur <= d2) { if (cur.getDay()!==0 && cur.getDay()!==6) count++; cur.setDate(cur.getDate()+1); } if(count===0) count=1; return tipoJornada === "media" ? count*0.5 : count;
+  let count = 0; const cur = new Date(d1); while (cur <= d2) { if (cur.getDay()!==0 && cur.getDay()!==6) count++; cur.setDate(cur.getDate()+1); } if(count===0) count=1; return tipoJornada === "media" ? Math.max(0.5, count - 0.5) : count;
 };
 
 type TipoFiltro = 'todos' | 'administrativo' | 'matrimonio';

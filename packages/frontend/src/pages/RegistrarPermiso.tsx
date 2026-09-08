@@ -21,11 +21,12 @@ export default function RegistrarPermiso() {
   const [fechaInicio, setFechaInicio] = useState(today);
   const [cantidadDias, setCantidadDias] = useState(1);
   const MAX_PERMISOS = 6;
-  const [tipoJornada, setTipoJornada] = useState<'completa' | 'media'>('completa');
+  const [tipoJornada] = useState<'completa' | 'media'>('completa');
+  const tipoJornadaDerivada: 'completa' | 'media' = Number.isInteger(cantidadDias) ? 'completa' : 'media';
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const fechaFin = useMemo(() => addBusinessDays(fechaInicio, (tipoPermiso === 'matrimonio' ? DIAS_MATRIMONIO : cantidadDias) - 1, feriados), [fechaInicio, cantidadDias, feriados, tipoPermiso]);
+  const fechaFin = useMemo(() => addBusinessDays(fechaInicio, (tipoPermiso === 'matrimonio' ? DIAS_MATRIMONIO : Math.ceil(cantidadDias)) - 1, feriados), [fechaInicio, cantidadDias, feriados, tipoPermiso]);
 
   useEffect(() => {
     userApi.list().then((res) => setUsuarios(res.data)).catch(() => {});
@@ -44,7 +45,7 @@ export default function RegistrarPermiso() {
     setError('');
     if (isWeekend(fechaInicio)) { setError('La fecha de inicio no puede ser fin de semana'); return; }
     if (feriados.includes(fechaInicio)) { setError('Corresponde a un feriado'); return; }
-    if (tipoPermiso === 'administrativo' && (cantidadDias < 1 || cantidadDias > MAX_PERMISOS)) { setError(`Debe estar entre 1 y ${MAX_PERMISOS}`); return; }
+    if (tipoPermiso === 'administrativo' && (cantidadDias < 0.5 || cantidadDias > MAX_PERMISOS || Math.round(cantidadDias*2)/2 !== cantidadDias)) { setError(`Debe estar entre 0.5 y ${MAX_PERMISOS} en pasos de 0.5`); return; }
     if (isWeekend(fechaFin) || feriados.includes(fechaFin)) { setError('Fecha de término cae en finde/feriado'); return; }
     setLoading(true);
     try {
@@ -52,7 +53,7 @@ export default function RegistrarPermiso() {
         await matrimonioApi.registrarParaUsuario({ user_id: selectedUserId, fecha_inicio: fechaInicio, motivo });
         toast({ message: 'Permiso por matrimonio registrado', type: 'success' });
       } else {
-        await permisoApi.registrarParaUsuario({ user_id: selectedUserId, fecha_inicio: fechaInicio, fecha_fin: fechaFin, tipo_jornada: cantidadDias > 1 ? 'completa' : tipoJornada, motivo });
+        await permisoApi.registrarParaUsuario({ user_id: selectedUserId, fecha_inicio: fechaInicio, fecha_fin: fechaFin, tipo_jornada: tipoJornadaDerivada, motivo });
         toast({ message: 'Permiso registrado correctamente', type: 'success' });
       }
       navigate('/gestion-permisos');
@@ -100,22 +101,14 @@ export default function RegistrarPermiso() {
         {tipoPermiso === 'administrativo' ? (
           <>
             <div>
-              <label className="block text-sm font-medium mb-1">Cantidad de Días (máx. {MAX_PERMISOS})</label>
-              <input type="number" min={1} max={MAX_PERMISOS} value={cantidadDias} onChange={(e) => setCantidadDias(Math.min(MAX_PERMISOS, Math.max(1, parseInt(e.target.value) || 1)))} className="w-full px-4 py-2 border rounded-lg outline-none" required />
+              <label className="block text-sm font-medium mb-1">Cantidad de Días (máx. {MAX_PERMISOS}) — permite media jornada (ej 1.5, 2.5)</label>
+              <input type="number" min={0.5} max={MAX_PERMISOS} step={0.5} value={cantidadDias} onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) setCantidadDias(Math.min(MAX_PERMISOS, Math.max(0.5, Math.round(v*2)/2))); }} className="w-full px-4 py-2 border rounded-lg outline-none" required />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Fecha Fin</label>
               <input type="date" value={fechaFin} readOnly className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed" />
             </div>
-            {cantidadDias === 1 && (
-              <div>
-                <label className="block text-sm font-medium mb-1">Tipo de Jornada</label>
-                <select value={tipoJornada} onChange={(e) => setTipoJornada(e.target.value as 'completa' | 'media')} className="w-full px-4 py-2 border rounded-lg outline-none">
-                  <option value="completa">Jornada Completa</option>
-                  <option value="media">Media Jornada</option>
-                </select>
-              </div>
-            )}
+            <div className={`px-4 py-2 rounded-lg text-sm ${tipoJornadaDerivada==='media' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>{tipoJornadaDerivada==='media' ? `Media jornada el último día — total ${cantidadDias} días.` : `Jornada completa — ${cantidadDias} día${cantidadDias===1?'':'s'} hábiles.`}</div>
           </>
         ) : (
           <>

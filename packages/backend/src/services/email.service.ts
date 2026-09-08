@@ -12,11 +12,12 @@ function jornadaLabel(v: string): string {
   return v === 'completa' ? 'Completa' : 'Media Jornada';
 }
 
-function calcularDias(inicio: string, fin: string | undefined | null): number {
-  if (!fin || fin === inicio) return 1;
+function calcularDias(inicio: string, fin: string | undefined | null, tipoJornada?: string): number {
   const d1 = new Date(inicio + 'T12:00:00');
-  const d2 = new Date(fin + 'T12:00:00');
-  return Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000) + 1);
+  const d2 = new Date((fin || inicio) + 'T12:00:00');
+  let count = 0; const cur = new Date(d1); while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); } if (count === 0) count = 1;
+  if (tipoJornada === 'media') return Math.max(0.5, count - 0.5);
+  return count;
 }
 
 function estadoBadge(estado: string): string {
@@ -160,7 +161,7 @@ export const emailService = {
 
     const saludo = userName ? `Hola <strong>${userName}</strong>,` : 'Hola,';
     const isMatrimonioNotif = categoria === 'matrimonio';
-    const dias = isMatrimonioNotif ? 5 : calcularDias(data.fecha_inicio, data.fecha_fin);
+    const dias = isMatrimonioNotif ? 5 : calcularDias(data.fecha_inicio, data.fecha_fin, data.tipo_jornada);
     const diaLabel = `${dias} ${dias === 1 ? 'día' : 'días'}`;
 
     let resumenHtml = '';
@@ -274,7 +275,7 @@ export const emailService = {
       const filas: [string, string][] = [
         ['Fecha Inicio', fmtDate(p.fecha_inicio)],
         ['Fecha Fin', fmtDate(p.fecha_fin)],
-        ['Días', isMatrimonio ? '5 días' : `${calcularDias(p.fecha_inicio, p.fecha_fin)} días`],
+        ['Días', isMatrimonio ? '5 días' : `${calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días`],
         ['Jornada', isMatrimonio ? 'Completa' : jornadaLabel(p.tipo_jornada)],
         ['Motivo', p.motivo || '-'],
         ['Estado', 'Pendiente de revisión'],

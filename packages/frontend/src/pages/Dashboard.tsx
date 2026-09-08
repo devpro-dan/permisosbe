@@ -9,9 +9,9 @@ import { formatDate } from '../utils/format';
 import { toast } from '../components/Toast';
 
 function calcularDias(inicio: string, fin: string | null | undefined, tipo: string): number {
-  const d1 = new Date(inicio);
-  const d2 = fin ? new Date(fin) : d1;
-  return tipo === 'media' ? Math.max(1, Math.ceil(Math.abs(d2.getTime() - d1.getTime()) / 86400000) + 1) * 0.5 : Math.max(1, Math.ceil(Math.abs(d2.getTime() - d1.getTime()) / 86400000) + 1);
+  const d1 = new Date(inicio + 'T12:00:00'); const d2 = new Date((fin || inicio) + 'T12:00:00');
+  let count = 0; const cur = new Date(d1); while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); } if (count === 0) count = 1;
+  return tipo === 'media' ? Math.max(0.5, count - 0.5) : count;
 }
 
 export default function Dashboard() {
