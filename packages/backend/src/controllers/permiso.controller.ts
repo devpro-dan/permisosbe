@@ -85,8 +85,38 @@ function calcDiasSolicitud(inicio: string, fin: string | undefined, tipo: string
 
 function parseCantidadDias(raw: any): number | null {
   if (raw === null || raw === undefined || String(raw).trim() === '') return null;
-  const s = String(raw).trim().toLowerCase().replace(',', '.');
-  if (s === 'medio' || s === 'media' || s === '0.5' || s === '.5') return 0.5;
+  let s = String(raw).trim().toLowerCase().replace(',', '.');
+  s = (s as any).normalize ? (s as any).normalize('NFD').replace(/[\u0300-\u036f]/g, '') : s;
+  s = s.replace(/\s+/g, ' ').trim();
+  if (s === 'medio' || s === 'media' || s === 'medios' || s === 'medias' || s === '0.5' || s === '.5' || s === '1/2' || s === 'medio dia' || s === 'media jornada' || s === 'medio dia administrativo' || s === 'un medio' || s === 'medio dia') return 0.5;
+  const palabras: Record<string, number> = { un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 };
+  let m = s.match(/^(un|uno|una|dos|tres|cuatro|cinco|seis)\s+(?:dias?\s+)?(?:y\s+)?(medio|media|1\/2)\b/);
+  if (m) {
+    const n = palabras[m[1]] + 0.5;
+    if (n < 0.5 || n > 6) return null;
+    return n;
+  }
+  m = s.match(/^(\d+)\s*(?:y\s+)?(medio|media|medios|medias|1\/2)\b/);
+  if (m) {
+    const n = parseInt(m[1], 10) + 0.5;
+    if (n < 0.5 || n > 6) return null;
+    return n;
+  }
+  m = s.match(/^(\d+(?:\.\d+)?)\s*(dias?|jornada)?\s*(y\s+)?(medio|media|1\/2)\b/);
+  if (m) {
+    const base = parseFloat(m[1]);
+    const n = Number.isInteger(base) ? base + 0.5 : base;
+    if (isNaN(n) || n < 0.5 || n > 6) return null;
+    if (Math.round(n * 2) / 2 !== n) return null;
+    return Math.round(n * 10) / 10;
+  }
+  m = s.match(/^(\d+(?:\.\d+)?)\b/);
+  if (m) {
+    const n = parseFloat(m[1]);
+    if (isNaN(n) || n < 0.5 || n > 6) return null;
+    if (Math.round(n * 2) / 2 !== n) return null;
+    return Math.round(n * 10) / 10;
+  }
   const n = Number(s);
   if (isNaN(n) || n < 0.5 || n > 6) return null;
   if (Math.round(n * 2) / 2 !== n) return null;
@@ -780,7 +810,7 @@ export const permisoController = {
         { campo: 'rut', req: 'Sí', formato: 'Sólo números y K, sin puntos ni guion', ejemplo: '12345678', desc: 'Identifica al funcionario. Debe existir en la plataforma. Clave foránea permisos_administrativos.user_id → users.id' },
         { campo: 'dv', req: 'Sí', formato: '0-9 o K (1 carácter)', ejemplo: '5', desc: 'Dígito verificador del RUT.' },
         { campo: 'fecha_inicio', req: 'Sí', formato: 'YYYY-MM-DD', ejemplo: '2026-03-02', desc: 'Fecha inicio del permiso. No puede ser fin de semana ni feriado.' },
-        { campo: 'cantidad_dias', req: 'Sí', formato: '0.5 a 6 en pasos de 0.5', ejemplo: '2.5', desc: 'Cantidad de días hábiles. Admite .5 (ej 0.5,1.5,2.5). La fecha_fin se calcula automáticamente (días hábiles consecutivos, saltando finde/feriado).' },
+        { campo: 'cantidad_dias', req: 'Sí', formato: '0.5 a 6 en pasos de 0.5 (acepta 1.5, 1,5 o "1 y medio")', ejemplo: '1 y medio', desc: 'Cantidad de días hábiles. Admite .5 (ej 0.5,1.5,"1 y medio",2 y medio). La fecha_fin se calcula automáticamente (días hábiles consecutivos, saltando finde/feriado).' },
         { campo: 'tipo_jornada', req: 'Sí', formato: 'completa | media', ejemplo: 'completa', desc: 'completa para entero (1,2,3...), media para .5 (0.5,1.5,2.5...). Ej 2.5 días = 2 completos + media jornada.' },
         { campo: 'motivo', req: 'Sí', formato: 'Texto libre (máx 500)', ejemplo: 'Trámite personal', desc: 'Motivo del permiso administrativo.' },
       ]);
@@ -889,7 +919,7 @@ export const permisoController = {
           if (!motivoRaw) error = 'Motivo requerido';
           else if (!['completa', 'media'].includes(tipoJornadaRaw)) error = 'tipo_jornada debe ser completa o media';
           else if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_inicio)) error = `fecha_inicio inválida (${fechaInicioRaw})`;
-          else if (cantidadDias === null) error = `cantidad_dias inválida (${cantidadRaw}) debe ser 0.5 a 6 en pasos de 0.5 (ej 0.5,1,1.5,2...) o medio`;
+          else if (cantidadDias === null) error = `cantidad_dias inválida (${cantidadRaw}) debe ser 0.5 a 6 en pasos de 0.5 (ej 0.5,1,1.5,"1 y medio",2 y medio) o medio`;
           else if (cantidadDias! % 1 !== 0 && tipoJornadaRaw !== 'media') error = 'cantidad_dias con .5 (ej 1.5,2.5) solo permite tipo_jornada media';
           else if (cantidadDias! % 1 === 0 && tipoJornadaRaw === 'media' && cantidadDias !== 1) error = 'tipo_jornada media solo permite cantidad_dias con .5 (0.5,1.5,2.5...) o 1';
           else if (isWeekend(fecha_inicio)) error = 'fecha_inicio no puede ser fin de semana';
@@ -942,7 +972,7 @@ export const permisoController = {
             }
           }
           if (error) errors.push({ fila: rowNumber, message: error });
-          preview.push({ fila: rowNumber, rut: rutDisplay, fecha_inicio, cantidad_dias: String(cantidadRaw).trim(), tipo_jornada: tipoJornadaRaw, motivo: motivoRaw, fecha_fin: fecha_fin || fecha_inicio, error, valido: !error });
+          preview.push({ fila: rowNumber, rut: rutDisplay, fecha_inicio, cantidad_dias: cantidadDias !== null ? String(cantidadDias) : String(cantidadRaw).trim(), tipo_jornada: tipoJornadaRaw, motivo: motivoRaw, fecha_fin: fecha_fin || fecha_inicio, error, valido: !error });
         }
         res.json({ preview, errors, total: preview.length });
       } catch (error: any) { res.status(500).json({ message: error.message || 'Error al previsualizar planilla' }); }
@@ -998,7 +1028,7 @@ export const permisoController = {
           if (!motivoRaw) { errors.push({ fila: rowNumber, message: 'Motivo requerido' }); continue; }
           if (!['completa', 'media'].includes(tipoJornadaRaw)) { errors.push({ fila: rowNumber, message: 'tipo_jornada debe ser completa o media' }); continue; }
           if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_inicio)) { errors.push({ fila: rowNumber, message: `fecha_inicio inválida (${fechaInicioRaw}) use YYYY-MM-DD` }); continue; }
-          if (cantidadDias === null) { errors.push({ fila: rowNumber, message: `cantidad_dias inválida (${cantidadRaw}) debe ser 0.5 a 6 en pasos de 0.5 (ej 0.5,1,1.5...) o medio` }); continue; }
+          if (cantidadDias === null) { errors.push({ fila: rowNumber, message: `cantidad_dias inválida (${cantidadRaw}) debe ser 0.5 a 6 en pasos de 0.5 (ej 0.5,1,1.5,"1 y medio") o medio` }); continue; }
           if (cantidadDias! % 1 !== 0 && tipoJornadaRaw !== 'media') { errors.push({ fila: rowNumber, message: 'cantidad_dias con .5 (ej 1.5,2.5) solo permite tipo_jornada media' }); continue; }
           if (cantidadDias! % 1 === 0 && tipoJornadaRaw === 'media' && cantidadDias !== 1) { errors.push({ fila: rowNumber, message: 'tipo_jornada media solo permite cantidad_dias con .5 (0.5,1.5...) o 1' }); continue; }
           if (isWeekend(fecha_inicio)) { errors.push({ fila: rowNumber, message: 'fecha_inicio no puede ser fin de semana' }); continue; }
