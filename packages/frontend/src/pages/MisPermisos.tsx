@@ -65,6 +65,9 @@ export default function MisPermisos() {
   const handleDescargarCertificado = async (id: number) => {
     try { const res = await permisoApi.certificado(id); const url = window.URL.createObjectURL(new Blob([res.data])); const a = document.createElement('a'); a.href = url; a.download = `certificado_permiso_${id}.pdf`; a.click(); window.URL.revokeObjectURL(url); } catch (err: any) { alert(err.response?.data?.message || 'Error al descargar certificado'); }
   };
+  const handleGenerarComprobanteMatrimonio = async (id: number) => {
+    try { const res = await matrimonioApi.comprobantePdf(id); const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' })); const a = document.createElement('a'); a.href = url; a.download = `comprobante_matrimonio_${id}.pdf`; a.click(); window.URL.revokeObjectURL(url); } catch (err: any) { alert(err.response?.data?.message || 'Error al generar comprobante'); }
+  };
 
   const estadoBadge = (estado: string) => {
     const colors: Record<string, string> = { en_revision: 'bg-warning-100 text-warning-800', aprobado: 'bg-success-100 text-success-800', rechazado: 'bg-danger-100 text-danger-800' };
@@ -95,7 +98,11 @@ export default function MisPermisos() {
     { key: 'estado', label: 'Estado', render: (_: any, row: any) => estadoBadge(row.estado) },
     { key: 'motivo', label: 'Motivo' },
     { key: 'motivo_rechazo', label: 'Motivo Rechazo', render: (v: string) => v || '-' },
-    { key: 'certificado', label: 'Certificado', render: (_: any, row: any) => row._tipo === 'administrativo' && row.estado === 'aprobado' ? <button onClick={() => handleDescargarCertificado(row.id)} className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-800"><FileCheck className="w-3.5 h-3.5" /> Descargar</button> : null },
+    { key: 'certificado', label: 'Certificado / Comprobante', render: (_: any, row: any) => {
+      if (row.estado !== 'aprobado') return null;
+      if (row._tipo === 'administrativo') return <button onClick={() => handleDescargarCertificado(row.id)} className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-800"><FileCheck className="w-3.5 h-3.5" /> Descargar</button>;
+      return <button onClick={() => handleGenerarComprobanteMatrimonio(row.id)} className="inline-flex items-center gap-1 text-sm text-pink-600 hover:text-pink-800"><FileCheck className="w-3.5 h-3.5" /> Comprobante</button>;
+    } },
     { key: 'comprobante', label: 'Comprobante', render: (_: any, row: any) => row.estado === 'aprobado' && row.comprobante_disponible ? <button onClick={() => handleDescargarComprobante(row.id, row._tipo)} className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-800"><FileText className="w-3.5 h-3.5" /> Ver</button> : row.estado === 'aprobado' && !row.comprobante_disponible ? <span className={`text-xs ${row.comprobante_url ? 'text-red-500' : 'text-gray-400'}`}>{row.comprobante_url ? 'No disponible' : 'Sin comprobante'}</span> : null },
   ];
 
@@ -149,6 +156,8 @@ export default function MisPermisos() {
           <p className="text-sm font-semibold text-primary-700">{p._tipo === 'matrimonio' ? '5 días' : `${calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días`}</p>
           <p className="text-sm text-gray-600"><strong>Motivo:</strong> {p.motivo}</p>
           {p.motivo_rechazo && <p className="text-sm text-red-600"><strong>Rechazo:</strong> {p.motivo_rechazo}</p>}
+          {p.estado === 'aprobado' && p._tipo === 'administrativo' && <button onClick={() => handleDescargarCertificado(p.id)} className="inline-flex items-center gap-1 text-sm text-primary-600 mt-2"><FileCheck className="w-3.5 h-3.5" /> Descargar certificado</button>}
+          {p.estado === 'aprobado' && p._tipo === 'matrimonio' && <button onClick={() => handleGenerarComprobanteMatrimonio(p.id)} className="inline-flex items-center gap-1 text-sm text-pink-600 mt-2"><FileCheck className="w-3.5 h-3.5" /> Descargar comprobante</button>}
         </MobileCard>
       ))}
     </div>

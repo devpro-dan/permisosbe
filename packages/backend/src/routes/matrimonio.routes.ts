@@ -18,5 +18,6 @@ router.post('/:id/aprobar', authorize('permisos_administrativos', 'edit'), matri
 router.post('/:id/rechazar', authorize('permisos_administrativos', 'edit'), matrimonioController.rechazar);
 router.post('/:id/comprobante', authorize('permisos_administrativos', 'edit'), matrimonioController.subirComprobante);
 router.get('/:id/comprobante', authenticate, matrimonioController.descargarComprobante);
+router.get('/:id/comprobante-generar', authorize('permisos_administrativos', 'edit'), matrimonioController.generarComprobante);
 
 export default router;

@@ -56,7 +56,7 @@ export default function GestionPermisos() {
   const [editError, setEditError] = useState('');
   const [feriados, setFeriados] = useState<string[]>([]);
   const puedeEditar = user?.rolId === 1 || user?.rolId === 2;
-  const puedeAprobar = user?.permissions?.some((p) => p.seccion === 'permisos_administrativos' && p.can_approve) ?? (user?.rolId === 1 || user?.rolId === 2);
+  const puedeAprobar = user?.permissions?.some((p) => p.seccion === 'permisos_administrativos' && p.can_approve) || user?.rolId === 1 || user?.rolId === 2;
 
   useEffect(() => { feriadoApi.list(new Date().getFullYear()).then((res) => setFeriados(res.data.map((f: any) => f.fecha))).catch(() => {}); }, []);
   const load = () => {
@@ -128,6 +128,9 @@ export default function GestionPermisos() {
   };
   const handleDescargarCertificado = async (id: number) => {
     try { const res = await permisoApi.certificado(id); const url = window.URL.createObjectURL(new Blob([res.data])); const a = document.createElement('a'); a.href = url; a.download = `certificado_permiso_${id}.pdf`; a.click(); window.URL.revokeObjectURL(url); } catch (err: any) { alert(err.response?.data?.message || 'Error al descargar certificado'); }
+  };
+  const handleGenerarComprobanteMatrimonio = async (id: number) => {
+    try { const res = await matrimonioApi.comprobantePdf(id); const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' })); const a = document.createElement('a'); a.href = url; a.download = `comprobante_matrimonio_${id}.pdf`; a.click(); window.URL.revokeObjectURL(url); } catch (err: any) { alert(err.response?.data?.message || 'Error al generar comprobante'); }
   };
   const handleDescargarPlantilla = async () => {
     try { const res = await permisoApi.descargarPlantillaImport(); const url = window.URL.createObjectURL(new Blob([res.data])); const a = document.createElement('a'); a.href = url; a.download = 'plantilla_permisos_administrativos.xlsx'; a.click(); window.URL.revokeObjectURL(url); } catch (err: any) { if (err.response?.status === 403) toast({ message: 'No tienes permisos para descargar la plantilla', type: 'error' }); else toast({ message: err.response?.data?.message || 'Error al descargar plantilla', type: 'error' }); }
@@ -206,7 +209,11 @@ export default function GestionPermisos() {
     { key: 'tipo_jornada', label: 'Jornada', render: (v: string, row: Row) => row._tipo === 'matrimonio' ? '-' : v === 'completa' ? 'Completa' : 'Media' },
     { key: 'estado', label: 'Estado', render: (_: any, row: Row) => estadoBadge(row.estado) },
     { key: 'motivo', label: 'Motivo' },
-    { key: 'certificado', label: 'Certificado', render: (_: any, row: Row) => row._tipo === 'administrativo' && row.estado === 'aprobado' ? <button onClick={() => handleDescargarCertificado(row.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"><FileText className="w-3.5 h-3.5" /> Descargar</button> : null },
+    { key: 'certificado', label: 'Certificado / Comprobante', render: (_: any, row: Row) => {
+      if (row.estado !== 'aprobado') return null;
+      if (row._tipo === 'administrativo') return <button onClick={() => handleDescargarCertificado(row.id)} className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"><FileText className="w-3.5 h-3.5" /> Descargar</button>;
+      return <button onClick={() => handleGenerarComprobanteMatrimonio(row.id)} className="inline-flex items-center gap-1 text-sm text-pink-600 hover:text-pink-800"><FileText className="w-3.5 h-3.5" /> Comprobante</button>;
+    } },
     { key: 'comprobante', label: 'Comprobante', render: (_: any, row: Row) => renderComprobanteActions(row) },
   ];
 
@@ -263,7 +270,7 @@ export default function GestionPermisos() {
         {(searchTerm || fechaInicio || fechaFin) && <div className="flex items-center justify-between bg-primary-50 border border-primary-200 rounded-lg p-3"><p className="text-sm text-primary-800">Mostrando <span className="font-semibold">{permisosFiltrados.length}</span> de <span className="font-semibold">{unificados.length}</span> permisos</p><button onClick={limpiarFiltros} className="inline-flex items-center gap-1 text-sm text-primary-700 font-medium"><X className="w-4 h-4" /> Limpiar filtros</button></div>}
       </div>
 
-      <DataTable columns={columns as any} data={permisosFiltrados as any} onEdit={(row: any) => handleEditOpen(row as Row)} canEdit={(row: any) => (row as Row).estado === 'en_revision'} onDelete={(row: any) => handleDelete(row as Row)} />
+      <DataTable columns={columns as any} data={permisosFiltrados as any} onApprove={(row: any) => handleAprobar(row as Row)} canApprove={(row: any) => (row as Row).estado === 'en_revision' && puedeAprobar} onEdit={(row: any) => handleEditOpen(row as Row)} canEdit={(row: any) => (row as Row).estado === 'en_revision'} onDelete={(row: any) => handleDelete(row as Row)} />
       {permisosFiltrados.map((p) => (
         <MobileCard key={`${p._tipo}-${p.id}`} onDelete={() => handleDelete(p)}>
           <p className="font-medium">{(p as any).nombres} {(p as any).apellido_paterno} {tipoBadge(p._tipo)}</p>
@@ -272,7 +279,7 @@ export default function GestionPermisos() {
           <div className="flex items-center gap-2">{estadoBadge(p.estado)}</div>
           <p className="text-sm text-gray-600">{p.motivo}</p>
           {p.estado === 'en_revision' && <div className="flex gap-2 mt-2"><button onClick={() => handleEditOpen(p)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-primary-600 text-white rounded-lg"><Pencil className="w-3.5 h-3.5" /> Editar</button>{puedeAprobar && <button onClick={() => handleAprobar(p)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-success-600 text-white rounded-lg"><CheckCircle className="w-3.5 h-3.5" /> Aprobar</button>}<button onClick={() => setRechazoModal({ id: p.id, tipo: p._tipo as any, open: true })} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-danger-600 text-white rounded-lg"><XCircle className="w-3.5 h-3.5" /> Rechazar</button></div>}
-          {p.estado === 'aprobado' && <div className="flex gap-2 mt-2">{renderComprobanteActions(p)}</div>}
+          {p.estado === 'aprobado' && <div className="flex flex-wrap gap-2 mt-2">{p._tipo === 'matrimonio' && <button onClick={() => handleGenerarComprobanteMatrimonio(p.id)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-pink-600 text-white rounded-lg"><FileText className="w-3.5 h-3.5" /> Comprobante</button>}{renderComprobanteActions(p)}</div>}
         </MobileCard>
       ))}
 

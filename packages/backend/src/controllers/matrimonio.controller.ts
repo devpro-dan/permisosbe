@@ -246,4 +246,18 @@ export const matrimonioController = {
       res.sendFile(filePath);
     } catch { res.status(500).json({ message: 'Error al descargar comprobante' }); }
   },
+
+  async generarComprobante(req: Request, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const permiso = await matrimonioService.findById(id);
+      if (!permiso) { res.status(404).json({ message: 'Permiso no encontrado' }); return; }
+      if (permiso.estado !== 'aprobado') { res.status(400).json({ message: 'El permiso debe estar aprobado para generar el comprobante' }); return; }
+      const { reporteService } = require('../services/reporte.service');
+      const pdfBuffer = await reporteService.generarComprobanteMatrimonio(permiso, permiso);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=comprobante_matrimonio_${id}.pdf`);
+      res.send(pdfBuffer);
+    } catch { res.status(500).json({ message: 'Error al generar comprobante' }); }
+  },
 };

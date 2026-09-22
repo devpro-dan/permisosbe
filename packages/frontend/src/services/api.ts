@@ -172,6 +172,7 @@ export const matrimonioApi = {
     return api.post(`/permisos-matrimonio/${id}/comprobante`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
   descargarComprobante: (id: number) => api.get(`/permisos-matrimonio/${id}/comprobante`, { responseType: 'blob' }),
+  comprobantePdf: (id: number) => api.get(`/permisos-matrimonio/${id}/comprobante-generar`, { responseType: 'blob' }),
 };
 
 export const feriadoApi = {
