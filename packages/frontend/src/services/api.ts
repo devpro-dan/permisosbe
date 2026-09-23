@@ -148,9 +148,10 @@ export const permisoApi = {
     formData.append('file', file);
     return api.post('/permisos/import/preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
-  importarPlanilla: (file: File) => {
+  importarPlanilla: (file: File, estado: string) => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('estado', estado);
     return api.post('/permisos/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
 };

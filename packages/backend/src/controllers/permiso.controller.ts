@@ -1003,6 +1003,8 @@ export const permisoController = {
       if (err) { res.status(400).json({ message: err.message || 'Error al subir archivo' }); return; }
       if (!req.file) { res.status(400).json({ message: 'Debe seleccionar un archivo Excel (.xlsx)' }); return; }
       try {
+        const estadoImport = (req.body?.estado || 'en_revision') as string;
+        if (!['en_revision', 'aprobado'].includes(estadoImport)) { res.status(400).json({ message: 'Estado debe ser en_revision o aprobado' }); return; }
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer as any);
         const sheet = workbook.worksheets[0];
@@ -1091,7 +1093,7 @@ export const permisoController = {
           }
           const overlap = await permisoService.checkOverlap(userId!, fecha_inicio, fecha_fin);
           if (overlap) { errors.push({ fila: rowNumber, message: 'Ya tiene un permiso registrado para esa fecha' }); continue; }
-          try { await permisoService.create({ user_id: userId!, fecha_inicio, fecha_fin: fecha_fin || undefined, tipo_jornada: tipoJornadaRaw as any, motivo: motivoRaw }); created++; } catch (e: any) { errors.push({ fila: rowNumber, message: e.message || 'Error al crear permiso' }); }
+          try { await permisoService.create({ user_id: userId!, fecha_inicio, fecha_fin: fecha_fin || undefined, tipo_jornada: tipoJornadaRaw as any, motivo: motivoRaw, estado: estadoImport as any }); created++; } catch (e: any) { errors.push({ fila: rowNumber, message: e.message || 'Error al crear permiso' }); }
         }
         try { await auditLogService.register(req, 'import', 'permiso', 0, `Importó planilla permisos: ${created} creados, ${errors.length} errores`); } catch {}
         res.json({ created, errors, total: created + errors.length });
