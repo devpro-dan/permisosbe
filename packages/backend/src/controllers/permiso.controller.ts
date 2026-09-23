@@ -895,6 +895,8 @@ export const permisoController = {
         const pool = require('../config/database').default;
         const preview: any[] = [];
         const errors: Array<{ fila: number; message: string }> = [];
+        const simulacionDias: Record<number, number> = {};
+        const simulacionRangos: Record<number, Array<{ inicio: string; fin?: string }>> = {};
         for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber++) {
           const row = sheet.getRow(rowNumber);
           const vals = row.values as any[];
@@ -958,15 +960,32 @@ export const permisoController = {
               if (!r.rows[0]) error = `Usuario no encontrado por RUT ${rutNorm}-${dvNorm}`;
               else {
                 const userId = r.rows[0].id;
+                const diasAcumulados = simulacionDias[userId] || 0;
                 const disponibilidad = await permisoService.getAvailablePermisos(userId);
                 let diasNecesarios = cantidadDias!;
                 if (tipoJornadaRaw === 'media' && cantidadDias === 1) diasNecesarios = 0.5;
-                if (diasNecesarios > disponibilidad.available) {
+                const availableSim = Math.max(0, Math.round((disponibilidad.available - diasAcumulados) * 10) / 10);
+                if (diasNecesarios > availableSim) {
                   const reqStr = diasNecesarios === 0.5 ? 'media jornada' : String(diasNecesarios);
-                  error = `Solicita ${reqStr} día${diasNecesarios === 1 || diasNecesarios === 0.5 ? '' : 's'}, solo quedan ${disponibilidad.available} disponibles de ${disponibilidad.max}`;
+                  error = `Solicita ${reqStr} día${diasNecesarios === 1 || diasNecesarios === 0.5 ? '' : 's'}, solo quedan ${availableSim} disponibles de ${disponibilidad.max}`;
                 } else {
-                  const overlap = await permisoService.checkOverlap(userId, fecha_inicio, fecha_fin);
-                  if (overlap) error = 'Ya tiene un permiso registrado para esa fecha';
+                  const overlapDb = await permisoService.checkOverlap(userId, fecha_inicio, fecha_fin);
+                  const rangos = simulacionRangos[userId] || [];
+                  const fechaFinC = fecha_fin || fecha_inicio;
+                  const overlapFile = rangos.some((r) => fecha_inicio <= (r.fin || r.inicio) && fechaFinC >= r.inicio);
+                  if (overlapDb || overlapFile) {
+                    error = 'Ya tiene un permiso registrado para esa fecha';
+                  } else {
+                    const d1 = new Date(fecha_inicio + 'T12:00:00');
+                    const d2 = new Date((fecha_fin || fecha_inicio) + 'T12:00:00');
+                    let count = 0;
+                    const cur = new Date(d1);
+                    while (cur <= d2) { const day = cur.getDay(); if (day !== 0 && day !== 6) count++; cur.setDate(cur.getDate() + 1); }
+                    if (count === 0) count = 1;
+                    const consumido = tipoJornadaRaw === 'media' ? Math.max(0.5, count - 0.5) : count;
+                    simulacionDias[userId] = Math.round(((simulacionDias[userId] || 0) + consumido) * 10) / 10;
+                    simulacionRangos[userId] = rangos.concat([{ inicio: fecha_inicio, fin: fecha_fin }]);
+                  }
                 }
               }
             }
