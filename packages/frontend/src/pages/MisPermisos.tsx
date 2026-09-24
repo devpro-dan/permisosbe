@@ -75,8 +75,6 @@ export default function MisPermisos() {
   };
   const tipoBadge = (t: string) => t === 'matrimonio' ? <span className="px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800 inline-flex items-center gap-1"><Heart className="w-3 h-3" /> Matrimonio</span> : <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Administrativo</span>;
 
-  if (loading) return <LoadingSpinner message="Cargando permisos..." />;
-
   const unificados = useMemo(() => {
     const a = permisos.map((p) => ({ ...p, _tipo: 'administrativo' as const }));
     const m = matrimonios.map((p) => ({ ...p, _tipo: 'matrimonio' as const, tipo_jornada: 'completa' as const }));
@@ -84,6 +82,8 @@ export default function MisPermisos() {
     if (filtro === 'todos') return all;
     return all.filter((x) => x._tipo === filtro);
   }, [permisos, matrimonios, filtro]);
+
+  if (loading) return <LoadingSpinner message="Cargando permisos..." />;
 
   const columns = [
     { key: '_tipo', label: 'Tipo', render: (_: any, row: any) => tipoBadge(row._tipo) },
