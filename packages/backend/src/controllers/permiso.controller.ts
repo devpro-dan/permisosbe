@@ -192,7 +192,7 @@ export const permisoController = {
         return;
       }
 
-      let fechaFinAjustada: string | undefined = fecha_fin || undefined;
+      let fechaFinAjustada: string | undefined = fecha_fin || fecha_inicio;
       if (fechaFinAjustada) {
         const diasHabilesSolicitados = calcDiasSolicitud(fecha_inicio, fechaFinAjustada, tipo_jornada);
         const businessDays = tipo_jornada === 'media' ? Math.ceil(diasHabilesSolicitados) : diasHabilesSolicitados;
@@ -381,7 +381,7 @@ export const permisoController = {
         return;
       }
 
-      let fechaFinAjustada2: string | undefined = fecha_fin || undefined;
+      let fechaFinAjustada2: string | undefined = fecha_fin || fecha_inicio;
       if (fechaFinAjustada2) {
         const diasHabilesSolicitados = calcDiasSolicitud(fecha_inicio, fechaFinAjustada2, tipo_jornada);
         const businessDays = tipo_jornada === 'media' ? Math.ceil(diasHabilesSolicitados) : diasHabilesSolicitados;
@@ -945,7 +945,7 @@ export const permisoController = {
               return `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
             };
             const _businessDays = tipoJornadaRaw === 'media' ? Math.ceil(cantidadDias!) : cantidadDias!;
-            fecha_fin = _businessDays > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias!, tipoJornadaRaw) : undefined;
+            fecha_fin = _businessDays > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias!, tipoJornadaRaw) : fecha_inicio;
             if (fecha_fin) {
               const feriadosFin = await feriadosEnRango(fecha_fin, fecha_fin);
               if (feriadosFin.length > 0) error = mensajeFeriado(feriadosFin[0]);
@@ -1070,7 +1070,7 @@ export const permisoController = {
             return `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
           };
           const _bd = tipoJornadaRaw === 'media' ? Math.ceil(cantidadDias!) : cantidadDias!;
-          const fecha_fin = _bd > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias!, tipoJornadaRaw) : undefined;
+          const fecha_fin = _bd > 1 ? await addBusinessDaysCalc(fecha_inicio, cantidadDias!, tipoJornadaRaw) : fecha_inicio;
           if (fecha_fin) {
             const feriadosFin = await feriadosEnRango(fecha_fin, fecha_fin);
             if (feriadosFin.length > 0) { errors.push({ fila: rowNumber, message: mensajeFeriado(feriadosFin[0]) }); continue; }
@@ -1093,7 +1093,7 @@ export const permisoController = {
           }
           const overlap = await permisoService.checkOverlap(userId!, fecha_inicio, fecha_fin);
           if (overlap) { errors.push({ fila: rowNumber, message: 'Ya tiene un permiso registrado para esa fecha' }); continue; }
-          try { await permisoService.create({ user_id: userId!, fecha_inicio, fecha_fin: fecha_fin || undefined, tipo_jornada: tipoJornadaRaw as any, motivo: motivoRaw, estado: estadoImport as any }); created++; } catch (e: any) { errors.push({ fila: rowNumber, message: e.message || 'Error al crear permiso' }); }
+          try { await permisoService.create({ user_id: userId!, fecha_inicio, fecha_fin, tipo_jornada: tipoJornadaRaw as any, motivo: motivoRaw, estado: estadoImport as any }); created++; } catch (e: any) { errors.push({ fila: rowNumber, message: e.message || 'Error al crear permiso' }); }
         }
         try { await auditLogService.register(req, 'import', 'permiso', 0, `Importó planilla permisos: ${created} creados, ${errors.length} errores`); } catch {}
         res.json({ created, errors, total: created + errors.length });

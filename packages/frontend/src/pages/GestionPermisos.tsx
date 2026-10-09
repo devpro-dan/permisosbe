@@ -202,7 +202,7 @@ export default function GestionPermisos() {
     { key: 'nombres', label: 'Trabajador', render: (_: any, row: Row) => `${(row as any).nombres} ${(row as any).apellido_paterno}` },
     { key: 'rut', label: 'RUT', render: (_: any, row: Row) => `${(row as any).rut}-${(row as any).dv}` },
     { key: 'fecha_inicio', label: 'Inicio', render: (v: string) => formatDate(v) },
-    { key: 'fecha_fin', label: 'Fin', render: (v: string) => v ? formatDate(v) : '-' },
+    { key: 'fecha_fin', label: 'Fin', render: (v: string, row: Row) => formatDate(v || row.fecha_inicio) },
     { key: 'dias', label: 'Días', render: (_: any, row: Row) => {
       const dias = row._tipo === 'matrimonio' ? 5 : calcularDias(row.fecha_inicio, (row as Permiso).fecha_fin, (row as Permiso).tipo_jornada || 'completa', feriados);
       return <span className={`font-semibold ${row._tipo === 'matrimonio' ? 'text-pink-700' : 'text-primary-700'}`}>{dias} {dias === 1 ? 'día' : 'días'}</span>;
@@ -276,7 +276,7 @@ export default function GestionPermisos() {
         <MobileCard key={`${p._tipo}-${p.id}`} onDelete={() => handleDelete(p)}>
           <p className="font-medium">{(p as any).nombres} {(p as any).apellido_paterno} {tipoBadge(p._tipo)}</p>
           <p className="text-sm text-gray-500">{(p as any).rut}-{(p as any).dv}</p>
-          <p className="text-sm">{formatDate(p.fecha_inicio)}{p.fecha_fin ? ` - ${formatDate(p.fecha_fin)}` : ''} — <span className="font-semibold">{p._tipo === 'matrimonio' ? '5 días' : `${calcularDias(p.fecha_inicio, (p as any).fecha_fin, (p as any).tipo_jornada || 'completa', feriados)} días`}</span></p>
+          <p className="text-sm">{formatDate(p.fecha_inicio)}{p.fecha_fin && p.fecha_fin !== p.fecha_inicio ? ` - ${formatDate(p.fecha_fin)}` : ''} — <span className="font-semibold">{p._tipo === 'matrimonio' ? '5 días' : `${calcularDias(p.fecha_inicio, (p as any).fecha_fin, (p as any).tipo_jornada || 'completa', feriados)} días`}</span></p>
           <div className="flex items-center gap-2">{estadoBadge(p.estado)}</div>
           <p className="text-sm text-gray-600">{p.motivo}</p>
           {p.estado === 'en_revision' && <div className="flex gap-2 mt-2"><button onClick={() => handleEditOpen(p)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-primary-600 text-white rounded-lg"><Pencil className="w-3.5 h-3.5" /> Editar</button>{puedeAprobar && <button onClick={() => handleAprobar(p)} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-success-600 text-white rounded-lg"><CheckCircle className="w-3.5 h-3.5" /> Aprobar</button>}<button onClick={() => setRechazoModal({ id: p.id, tipo: p._tipo as any, open: true })} className="inline-flex items-center gap-1 text-sm px-3 py-1 bg-danger-600 text-white rounded-lg"><XCircle className="w-3.5 h-3.5" /> Rechazar</button></div>}

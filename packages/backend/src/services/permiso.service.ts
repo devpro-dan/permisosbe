@@ -99,7 +99,7 @@ export const permisoService = {
     const result = await pool.query(
       `INSERT INTO permisos_administrativos (user_id, fecha_inicio, fecha_fin, tipo_jornada, estado, motivo)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [data.user_id, data.fecha_inicio, data.fecha_fin || null, data.tipo_jornada, data.estado || 'en_revision', data.motivo]
+      [data.user_id, data.fecha_inicio, data.fecha_fin || data.fecha_inicio, data.tipo_jornada, data.estado || 'en_revision', data.motivo]
     );
     return result.rows[0];
   },

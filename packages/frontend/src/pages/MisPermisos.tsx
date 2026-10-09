@@ -89,7 +89,7 @@ export default function MisPermisos() {
     { key: '_tipo', label: 'Tipo', render: (_: any, row: any) => tipoBadge(row._tipo) },
     { key: 'fecha_solicitud', label: 'Fecha Solicitud', render: (v: string) => formatDate(v) },
     { key: 'fecha_inicio', label: 'Fecha Inicio', render: (v: string) => formatDate(v) },
-    { key: 'fecha_fin', label: 'Fecha Fin', render: (v: string) => v ? formatDate(v) : '-' },
+    { key: 'fecha_fin', label: 'Fecha Fin', render: (v: string, row: any) => formatDate(v || row.fecha_inicio) },
     { key: 'dias', label: 'Días', render: (_: any, row: any) => {
       const dias = row._tipo === 'matrimonio' ? 5 : calcularDias(row.fecha_inicio, row.fecha_fin, row.tipo_jornada);
       return <span className={`font-semibold ${row._tipo === 'matrimonio' ? 'text-pink-700' : 'text-primary-700'}`}>{dias} {dias === 1 ? 'día' : 'días'}</span>;
@@ -150,7 +150,7 @@ export default function MisPermisos() {
       {unificados.map((p: any) => (
         <MobileCard key={`${p._tipo}-${p.id}`}>
           <div className="flex justify-between items-start">
-            <div><p className="font-medium">{formatDate(p.fecha_solicitud)}</p><p className="text-sm text-gray-500">{formatDate(p.fecha_inicio)}{p.fecha_fin ? ` - ${formatDate(p.fecha_fin)}` : ''}</p></div>
+            <div><p className="font-medium">{formatDate(p.fecha_solicitud)}</p><p className="text-sm text-gray-500">{formatDate(p.fecha_inicio)}{p.fecha_fin && p.fecha_fin !== p.fecha_inicio ? ` - ${formatDate(p.fecha_fin)}` : ''}</p></div>
             <div className="flex flex-col gap-1 items-end">{tipoBadge(p._tipo)}{estadoBadge(p.estado)}</div>
           </div>
           <p className="text-sm font-semibold text-primary-700">{p._tipo === 'matrimonio' ? '5 días' : `${calcularDias(p.fecha_inicio, p.fecha_fin, p.tipo_jornada)} días`}</p>
